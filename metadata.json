@@ -1,0 +1,6 @@
+{
+  "name": "Elite",
+  "description": "Authentic mobile port of the classic BBC Micro 6502 assembler space trading and combat simulation game Elite, featuring procedural galaxy generation, 3D wireframe spaceflight, market trading, and iconic cockpit dashboard.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

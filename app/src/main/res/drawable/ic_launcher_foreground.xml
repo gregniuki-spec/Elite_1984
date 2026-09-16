@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:pivotX="54"
+        android:pivotY="54">
+        <!-- Main Cobra Hull Body Silhouette -->
+        <path
+            android:fillColor="#1500FF66"
+            android:strokeColor="#00FF66"
+            android:strokeWidth="2.2"
+            android:strokeLineJoin="round"
+            android:strokeLineCap="round"
+            android:pathData="M54,22 L78,74 L70,82 L54,77 L38,82 L30,74 Z" />
+        
+        <!-- Cobra Mk III Wings and Outer Panels -->
+        <path
+            android:strokeColor="#00FF66"
+            android:strokeWidth="1.8"
+            android:strokeLineJoin="round"
+            android:pathData="M54,22 L92,68 L78,74 M54,22 L16,68 L30,74" />
+        
+        <!-- Ventral/Dorsal Ridge Lines -->
+        <path
+            android:strokeColor="#33FF88"
+            android:strokeWidth="1.4"
+            android:pathData="M54,22 L54,77 M54,40 L78,74 M54,40 L30,74 M54,40 L70,82 M54,40 L38,82" />
+        
+        <!-- Rear Thruster Exhaust / Engine Bay -->
+        <path
+            android:strokeColor="#00E5FF"
+            android:strokeWidth="1.5"
+            android:pathData="M44,79 L64,79 M46,83 L62,83" />
+        
+        <!-- Cockpit Glass Canopy Accent -->
+        <path
+            android:fillColor="#4400E5FF"
+            android:strokeColor="#00E5FF"
+            android:strokeWidth="1.2"
+            android:pathData="M50,38 L54,32 L58,38 L54,44 Z" />
+    </group>
+</vector>
