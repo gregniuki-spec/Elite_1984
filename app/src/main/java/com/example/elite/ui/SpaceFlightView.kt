@@ -49,9 +49,13 @@ import com.example.elite.math3d.WireframeRenderer
 @Composable
 fun SpaceFlightView(
     flightEngine: FlightEngine,
+    onOpenBattleArena: () -> Unit = {},
+    onOpenFleetStrategy: () -> Unit = {},
+    onOpenResourceExploration: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var stickOffset by remember { mutableStateOf(Offset.Zero) }
+    var showCombatRadarOverlay by remember { mutableStateOf(true) }
 
     Box(
         modifier = modifier
@@ -60,6 +64,17 @@ fun SpaceFlightView(
             .testTag("space_flight_viewport")
     ) {
         val camMatrix = flightEngine.getCameraMatrix()
+
+        // 3D Dynamic Combat Overlay with Wireframe Radar Blip Indicators & Off-Screen Threat Chevrons
+        if (showCombatRadarOverlay) {
+            CombatRadarOverlay(
+                flightEngine = flightEngine,
+                camMatrix = camMatrix,
+                showMiniRadar = true,
+                showOffScreenIndicators = true,
+                showLeadReticle = true
+            )
+        }
 
         // 3D Canvas Rendering (Wireframe ships, Celestial bodies, Stars, Lasers, Debris)
         Canvas(
@@ -240,38 +255,98 @@ fun SpaceFlightView(
             }
         }
 
-        // Top-Right: 4-Way Cockpit View Buttons
-        Row(
+        // Top-Right: 4-Way Cockpit View Buttons & Mode Quick Launchers
+        Column(
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .padding(end = 8.dp, top = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(2.dp)
+            horizontalAlignment = Alignment.End,
+            verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            val views = listOf(
-                CockpitView.FRONT to "F",
-                CockpitView.REAR to "R",
-                CockpitView.LEFT to "L",
-                CockpitView.RIGHT to "RGT"
-            )
-            for ((view, label) in views) {
-                val isSelected = flightEngine.currentView == view
+            Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                val views = listOf(
+                    CockpitView.FRONT to "F",
+                    CockpitView.REAR to "R",
+                    CockpitView.LEFT to "L",
+                    CockpitView.RIGHT to "RGT"
+                )
+                for ((view, label) in views) {
+                    val isSelected = flightEngine.currentView == view
+                    Button(
+                        onClick = { flightEngine.setCockpitView(view) },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (isSelected) Color(0xFFCC1111) else Color(0xFF221111)
+                        ),
+                        shape = RoundedCornerShape(2.dp),
+                        modifier = Modifier
+                            .size(width = 34.dp, height = 26.dp)
+                            .testTag("cockpit_view_${label.lowercase()}")
+                    ) {
+                        Text(
+                            text = label,
+                            color = if (isSelected) BBC_WHITE else Color(0xFFAAAAAA),
+                            fontSize = 9.sp,
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 Button(
-                    onClick = { flightEngine.setCockpitView(view) },
+                    onClick = { showCombatRadarOverlay = !showCombatRadarOverlay },
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = if (isSelected) Color(0xFFCC1111) else Color(0xFF221111)
+                        containerColor = if (showCombatRadarOverlay) Color(0xFF0F4C20) else Color(0xFF222B24)
                     ),
                     shape = RoundedCornerShape(2.dp),
-                    modifier = Modifier
-                        .size(width = 34.dp, height = 26.dp)
-                        .testTag("cockpit_view_${label.lowercase()}")
+                    modifier = Modifier.height(24.dp).testTag("toggle_combat_radar_btn")
                 ) {
                     Text(
-                        text = label,
-                        color = if (isSelected) BBC_WHITE else Color(0xFFAAAAAA),
-                        fontSize = 9.sp,
-                        fontFamily = FontFamily.Monospace,
+                        text = if (showCombatRadarOverlay) "RADAR ON" else "RADAR OFF",
+                        color = if (showCombatRadarOverlay) BBC_GREEN else Color(0xFFAAAAAA),
+                        fontSize = 8.sp,
                         fontWeight = FontWeight.Bold
                     )
+                }
+                Button(
+                    onClick = { flightEngine.toggleAutoPlay() },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (flightEngine.isAutoPlayActive) Color(0xFF6B1B6B) else Color(0xFF222830)
+                    ),
+                    shape = RoundedCornerShape(2.dp),
+                    modifier = Modifier.height(24.dp).testTag("toggle_auto_play_btn")
+                ) {
+                    Text(
+                        text = if (flightEngine.isAutoPlayActive) "AUTO: ${flightEngine.autoPlayMode.badge}" else "AUTO: OFF",
+                        color = if (flightEngine.isAutoPlayActive) BBC_YELLOW else BBC_WHITE,
+                        fontSize = 8.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                Button(
+                    onClick = onOpenBattleArena,
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF7A1B1B)),
+                    shape = RoundedCornerShape(2.dp),
+                    modifier = Modifier.height(24.dp).testTag("quick_battle_arena_btn")
+                ) {
+                    Text("BATTLE", color = BBC_WHITE, fontSize = 8.sp, fontWeight = FontWeight.Bold)
+                }
+                Button(
+                    onClick = onOpenFleetStrategy,
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF5A1020)),
+                    shape = RoundedCornerShape(2.dp),
+                    modifier = Modifier.height(24.dp).testTag("quick_fleet_war_btn")
+                ) {
+                    Text("WAR 100", color = Color(0xFFFFCC00), fontSize = 8.sp, fontWeight = FontWeight.Bold)
+                }
+                Button(
+                    onClick = onOpenResourceExploration,
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F3B4C)),
+                    shape = RoundedCornerShape(2.dp),
+                    modifier = Modifier.height(24.dp).testTag("quick_prospect_btn")
+                ) {
+                    Text("PROSPECT", color = BBC_CYAN, fontSize = 8.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -289,6 +364,27 @@ fun SpaceFlightView(
                     text = flightEngine.statusMessage,
                     color = BBC_YELLOW,
                     fontSize = 13.sp,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+
+        // Auto-Play Autonomous Mode Active Banner
+        if (flightEngine.isAutoPlayActive) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = if (flightEngine.isSolarScooping) 95.dp else 68.dp)
+                    .background(Color(0xDD3A0D3A), RoundedCornerShape(4.dp))
+                    .border(1.dp, Color(0xFFFF88FF), RoundedCornerShape(4.dp))
+                    .padding(horizontal = 10.dp, vertical = 3.dp)
+                    .testTag("auto_play_banner")
+            ) {
+                Text(
+                    text = "AUTO-PLAY [${flightEngine.autoPlayMode.title}]: ${flightEngine.autoPlayStatusText}",
+                    color = Color(0xFFFFCCFF),
+                    fontSize = 9.sp,
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Bold
                 )
@@ -433,7 +529,7 @@ fun SpaceFlightView(
                             containerColor = if (flightEngine.isDockingComputerActive) Color(0xFF005522) else Color(0xFF1E2830)
                         ),
                         shape = RoundedCornerShape(4.dp),
-                        modifier = Modifier.size(width = 72.dp, height = 30.dp).testTag("docking_comp_button")
+                        modifier = Modifier.size(width = 62.dp, height = 30.dp).testTag("docking_comp_button")
                     ) {
                         Text(
                             if (flightEngine.isDockingComputerActive) "DOCK ON" else "DOCK",
@@ -447,7 +543,7 @@ fun SpaceFlightView(
                         onClick = { flightEngine.cycleNavTarget() },
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF182A3A)),
                         shape = RoundedCornerShape(4.dp),
-                        modifier = Modifier.size(width = 64.dp, height = 30.dp).testTag("nav_target_button")
+                        modifier = Modifier.size(width = 52.dp, height = 30.dp).testTag("nav_target_button")
                     ) {
                         Text(
                             "NAV:${flightEngine.navTarget.name.take(3)}",
@@ -459,6 +555,15 @@ fun SpaceFlightView(
                             fontSize = 8.sp,
                             fontWeight = FontWeight.Bold
                         )
+                    }
+
+                    Button(
+                        onClick = { flightEngine.spawnAsteroidField(10) },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4A3000)),
+                        shape = RoundedCornerShape(4.dp),
+                        modifier = Modifier.size(width = 46.dp, height = 30.dp).testTag("spawn_asteroids_btn")
+                    ) {
+                        Text("MINE", color = BBC_YELLOW, fontSize = 8.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }

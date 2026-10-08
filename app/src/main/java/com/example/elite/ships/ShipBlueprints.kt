@@ -99,6 +99,237 @@ object ShipBlueprints {
             Edge(6, 9), Edge(6, 10), Edge(7, 10), Edge(7, 11),
             // Docking Slot edges
             Edge(12, 13), Edge(13, 14), Edge(14, 15), Edge(15, 12)
+        ),
+        faces = listOf(
+            Face(Vector3(0f, 0f, 1f), listOf(0, 1, 2, 3)),
+            Face(Vector3(0f, 0f, -1f), listOf(8, 11, 10, 9)),
+            Face(Vector3(1f, 0f, 0f), listOf(0, 5, 8, 4)),
+            Face(Vector3(-1f, 0f, 0f), listOf(2, 7, 10, 6)),
+            Face(Vector3(0f, 1f, 0f), listOf(1, 6, 9, 5)),
+            Face(Vector3(0f, -1f, 0f), listOf(3, 4, 11, 7)),
+            Face(Vector3(0.577f, 0.577f, 0.577f), listOf(0, 1, 5)),
+            Face(Vector3(-0.577f, 0.577f, 0.577f), listOf(1, 2, 6)),
+            Face(Vector3(-0.577f, -0.577f, 0.577f), listOf(2, 3, 7)),
+            Face(Vector3(0.577f, -0.577f, 0.577f), listOf(3, 0, 4)),
+            Face(Vector3(0.577f, 0.577f, -0.577f), listOf(5, 9, 8)),
+            Face(Vector3(-0.577f, 0.577f, -0.577f), listOf(6, 10, 9)),
+            Face(Vector3(-0.577f, -0.577f, -0.577f), listOf(7, 11, 10)),
+            Face(Vector3(0.577f, -0.577f, -0.577f), listOf(4, 8, 11))
+        )
+    )
+
+    // --- DODECAHEDRON SPACE STATION (High-Tech System Dodec Station) ---
+    val DODEC = ShipBlueprint(
+        name = "Dodecahedron Station",
+        baseScale = 1.25f,
+        maxSpeed = 0f,
+        bounty = 0,
+        vertices = listOf(
+            Vector3(80f, 80f, 80f),               // 0
+            Vector3(80f, 80f, -80f),              // 1
+            Vector3(80f, -80f, 80f),              // 2
+            Vector3(80f, -80f, -80f),             // 3
+            Vector3(-80f, 80f, 80f),              // 4
+            Vector3(-80f, 80f, -80f),             // 5
+            Vector3(-80f, -80f, 80f),             // 6
+            Vector3(-80f, -80f, -80f),            // 7
+            Vector3(0f, 49.4f, 129.4f),           // 8 (front top)
+            Vector3(0f, 49.4f, -129.4f),          // 9 (rear top)
+            Vector3(0f, -49.4f, 129.4f),          // 10 (front bottom)
+            Vector3(0f, -49.4f, -129.4f),         // 11 (rear bottom)
+            Vector3(49.4f, 129.4f, 0f),           // 12 (top right)
+            Vector3(49.4f, -129.4f, 0f),          // 13 (bottom right)
+            Vector3(-49.4f, 129.4f, 0f),          // 14 (top left)
+            Vector3(-49.4f, -129.4f, 0f),         // 15 (bottom left)
+            Vector3(129.4f, 0f, 49.4f),           // 16 (right front)
+            Vector3(129.4f, 0f, -49.4f),          // 17 (right rear)
+            Vector3(-129.4f, 0f, 49.4f),          // 18 (left front)
+            Vector3(-129.4f, 0f, -49.4f),         // 19 (left rear)
+            // Docking corridor slot on front pentagon (+Z face)
+            Vector3(12f, -32f, 131f),             // 20
+            Vector3(12f, 32f, 131f),              // 21
+            Vector3(-12f, 32f, 131f),             // 22
+            Vector3(-12f, -32f, 131f)             // 23
+        ),
+        edges = listOf(
+            // Dodecahedron 30 pentagonal boundary edges
+            Edge(8, 0), Edge(0, 16), Edge(16, 2), Edge(2, 10), Edge(10, 8),
+            Edge(8, 4), Edge(4, 18), Edge(18, 6), Edge(6, 10),
+            Edge(12, 0), Edge(12, 14), Edge(14, 4),
+            Edge(16, 17), Edge(17, 1), Edge(1, 12),
+            Edge(2, 13), Edge(13, 15), Edge(15, 6),
+            Edge(18, 19), Edge(19, 7), Edge(7, 15),
+            Edge(14, 5), Edge(5, 19),
+            Edge(1, 9), Edge(9, 5),
+            Edge(9, 11), Edge(11, 7),
+            Edge(17, 3), Edge(3, 13),
+            Edge(3, 11),
+            // Docking slot aperture
+            Edge(20, 21), Edge(21, 22), Edge(22, 23), Edge(23, 20)
+        ),
+        faces = listOf(
+            Face(Vector3(0f, 0f, 1f), listOf(8, 0, 16, 2, 10)),
+            Face(Vector3(-0.6f, 0f, 0.8f), listOf(8, 10, 6, 18, 4)),
+            Face(Vector3(0f, 0.85f, 0.52f), listOf(8, 4, 14, 12, 0)),
+            Face(Vector3(0f, -0.85f, 0.52f), listOf(10, 2, 13, 15, 6)),
+            Face(Vector3(0.85f, 0.52f, 0f), listOf(0, 12, 1, 17, 16)),
+            Face(Vector3(0.85f, -0.52f, 0f), listOf(2, 16, 17, 3, 13)),
+            Face(Vector3(0f, 0.85f, -0.52f), listOf(9, 1, 12, 14, 5)),
+            Face(Vector3(-0.6f, 0f, -0.8f), listOf(9, 5, 19, 7, 11)),
+            Face(Vector3(0.52f, 0f, -0.85f), listOf(9, 11, 3, 17, 1)),
+            Face(Vector3(-0.85f, 0.52f, 0f), listOf(4, 18, 19, 5, 14)),
+            Face(Vector3(-0.85f, -0.52f, 0f), listOf(6, 15, 7, 19, 18)),
+            Face(Vector3(0f, -0.85f, -0.52f), listOf(11, 7, 15, 13, 3))
+        )
+    )
+
+    // --- KRAIT (Pirate Raider, Classic 1984 Elite) ---
+    val KRAIT = ShipBlueprint(
+        name = "Krait",
+        baseScale = 0.72f,
+        maxSpeed = 38f,
+        bounty = 40,
+        vertices = listOf(
+            Vector3(0f, 0f, 84f),      // 0 (needle nose)
+            Vector3(0f, 18f, 10f),     // 1 (dorsal canopy apex)
+            Vector3(0f, -14f, 10f),    // 2 (ventral keel apex)
+            Vector3(96f, -10f, -48f),  // 3 (starboard wingtip)
+            Vector3(-96f, -10f, -48f), // 4 (port wingtip)
+            Vector3(48f, 12f, -48f),   // 5 (starboard upper wing)
+            Vector3(-48f, 12f, -48f),  // 6 (port upper wing)
+            Vector3(0f, 16f, -48f),    // 7 (upper stern)
+            Vector3(0f, -16f, -48f),   // 8 (lower stern)
+            Vector3(12f, 6f, 26f),     // 9 (starboard canopy glass)
+            Vector3(-12f, 6f, 26f)     // 10 (port canopy glass)
+        ),
+        edges = listOf(
+            Edge(0, 1), Edge(0, 2), Edge(0, 3), Edge(0, 4),
+            Edge(1, 5), Edge(1, 6), Edge(2, 3), Edge(2, 4),
+            Edge(3, 5), Edge(4, 6),
+            Edge(5, 7), Edge(6, 7), Edge(3, 8), Edge(4, 8),
+            Edge(7, 8),
+            // Cockpit glass frame
+            Edge(0, 9), Edge(0, 10), Edge(9, 10), Edge(1, 9), Edge(1, 10)
+        ),
+        faces = listOf(
+            Face(Vector3(0.5f, 0.7f, 0.3f).normalized(), listOf(0, 1, 5, 3)),
+            Face(Vector3(-0.5f, 0.7f, 0.3f).normalized(), listOf(0, 1, 6, 4)),
+            Face(Vector3(0f, -0.9f, 0.3f).normalized(), listOf(0, 2, 3)),
+            Face(Vector3(0f, -0.9f, 0.3f).normalized(), listOf(0, 2, 4)),
+            Face(Vector3(0f, 0.8f, -0.6f).normalized(), listOf(1, 5, 7, 6)),
+            Face(Vector3(0f, -0.8f, -0.6f).normalized(), listOf(2, 3, 8, 4)),
+            Face(Vector3(0f, 0f, -1f), listOf(5, 7, 8, 3)),
+            Face(Vector3(0f, 0f, -1f), listOf(6, 7, 8, 4))
+        )
+    )
+
+    // --- GECKO (Agile Pirate Light Fighter) ---
+    val GECKO = ShipBlueprint(
+        name = "Gecko",
+        baseScale = 0.68f,
+        maxSpeed = 42f,
+        bounty = 35,
+        vertices = listOf(
+            Vector3(0f, 4f, 64f),      // 0 (nose)
+            Vector3(24f, 10f, 12f),    // 1 (starboard shoulder)
+            Vector3(-24f, 10f, 12f),   // 2 (port shoulder)
+            Vector3(0f, -12f, 12f),    // 3 (keel)
+            Vector3(72f, 0f, -32f),    // 4 (starboard wing)
+            Vector3(-72f, 0f, -32f),   // 5 (port wing)
+            Vector3(24f, 18f, -32f),   // 6 (starboard fin)
+            Vector3(-24f, 18f, -32f),  // 7 (port fin)
+            Vector3(20f, -8f, -32f),   // 8 (starboard engine)
+            Vector3(-20f, -8f, -32f)   // 9 (port engine)
+        ),
+        edges = listOf(
+            Edge(0, 1), Edge(0, 2), Edge(0, 3),
+            Edge(1, 4), Edge(2, 5), Edge(3, 4), Edge(3, 5),
+            Edge(1, 6), Edge(2, 7), Edge(4, 6), Edge(5, 7),
+            Edge(6, 8), Edge(7, 9), Edge(8, 9), Edge(3, 8), Edge(3, 9)
+        ),
+        faces = listOf(
+            Face(Vector3(0f, 0.8f, 0.5f).normalized(), listOf(0, 1, 2)),
+            Face(Vector3(0.6f, 0.4f, 0.4f).normalized(), listOf(0, 1, 4, 3)),
+            Face(Vector3(-0.6f, 0.4f, 0.4f).normalized(), listOf(0, 2, 5, 3)),
+            Face(Vector3(0f, -0.9f, 0.1f).normalized(), listOf(3, 4, 8)),
+            Face(Vector3(0f, -0.9f, 0.1f).normalized(), listOf(3, 5, 9)),
+            Face(Vector3(0f, 0f, -1f), listOf(6, 7, 9, 8))
+        )
+    )
+
+    // --- ASP MK II (Military Combat Craft) ---
+    val ASP_MK_2 = ShipBlueprint(
+        name = "Asp Mk II",
+        baseScale = 0.78f,
+        maxSpeed = 36f,
+        bounty = 110,
+        vertices = listOf(
+            Vector3(0f, 0f, 88f),      // 0 (nose prow)
+            Vector3(34f, 16f, 24f),    // 1 (dorsal starboard)
+            Vector3(-34f, 16f, 24f),   // 2 (dorsal port)
+            Vector3(34f, -16f, 24f),   // 3 (ventral starboard)
+            Vector3(-34f, -16f, 24f),  // 4 (ventral port)
+            Vector3(90f, 0f, -28f),    // 5 (starboard outrigger)
+            Vector3(-90f, 0f, -28f),   // 6 (port outrigger)
+            Vector3(34f, 22f, -60f),   // 7 (starboard fin top)
+            Vector3(-34f, 22f, -60f),  // 8 (port fin top)
+            Vector3(34f, -16f, -60f),  // 9 (starboard engine base)
+            Vector3(-34f, -16f, -60f), // 10 (port engine base)
+            Vector3(0f, 18f, -60f),    // 11 (stern top center)
+            Vector3(0f, -14f, -60f)    // 12 (stern bottom center)
+        ),
+        edges = listOf(
+            Edge(0, 1), Edge(0, 2), Edge(0, 3), Edge(0, 4),
+            Edge(1, 2), Edge(3, 4), Edge(1, 3), Edge(2, 4),
+            Edge(1, 5), Edge(3, 5), Edge(2, 6), Edge(4, 6),
+            Edge(5, 7), Edge(5, 9), Edge(6, 8), Edge(6, 10),
+            Edge(1, 7), Edge(2, 8), Edge(3, 9), Edge(4, 10),
+            Edge(7, 11), Edge(8, 11), Edge(9, 12), Edge(10, 12),
+            Edge(11, 12)
+        ),
+        faces = listOf(
+            Face(Vector3(0f, 0.7f, 0.7f).normalized(), listOf(0, 1, 2)),
+            Face(Vector3(0f, -0.7f, 0.7f).normalized(), listOf(0, 3, 4)),
+            Face(Vector3(0.7f, 0f, 0.6f).normalized(), listOf(0, 1, 5, 3)),
+            Face(Vector3(-0.7f, 0f, 0.6f).normalized(), listOf(0, 2, 6, 4)),
+            Face(Vector3(0f, 0.8f, -0.4f).normalized(), listOf(1, 7, 11, 8, 2)),
+            Face(Vector3(0f, -0.8f, -0.4f).normalized(), listOf(3, 9, 12, 10, 4)),
+            Face(Vector3(0f, 0f, -1f), listOf(7, 8, 11, 12, 10, 9))
+        )
+    )
+
+    // --- MORAY STAR BOAT (Aquatic / Atmospheric Combat Yacht) ---
+    val MORAY = ShipBlueprint(
+        name = "Moray Star Boat",
+        baseScale = 0.75f,
+        maxSpeed = 34f,
+        bounty = 75,
+        vertices = listOf(
+            Vector3(0f, 0f, 80f),      // 0 (bow snout)
+            Vector3(0f, 30f, 10f),     // 1 (dorsal ridge)
+            Vector3(0f, -22f, 10f),    // 2 (ventral keel)
+            Vector3(76f, 6f, -18f),    // 3 (starboard fin)
+            Vector3(-76f, 6f, -18f),   // 4 (port fin)
+            Vector3(0f, 42f, -50f),    // 5 (tail fin peak)
+            Vector3(0f, 16f, -60f),    // 6 (stern top)
+            Vector3(0f, -16f, -60f),   // 7 (stern bottom)
+            Vector3(26f, 0f, -60f),    // 8 (starboard engine)
+            Vector3(-26f, 0f, -60f)    // 9 (port engine)
+        ),
+        edges = listOf(
+            Edge(0, 1), Edge(0, 2), Edge(0, 3), Edge(0, 4),
+            Edge(1, 3), Edge(1, 4), Edge(2, 3), Edge(2, 4),
+            Edge(1, 5), Edge(5, 6), Edge(2, 7),
+            Edge(3, 8), Edge(4, 9), Edge(6, 8), Edge(6, 9),
+            Edge(7, 8), Edge(7, 9), Edge(8, 9)
+        ),
+        faces = listOf(
+            Face(Vector3(0.5f, 0.7f, 0.5f).normalized(), listOf(0, 1, 3)),
+            Face(Vector3(-0.5f, 0.7f, 0.5f).normalized(), listOf(0, 1, 4)),
+            Face(Vector3(0.5f, -0.7f, 0.5f).normalized(), listOf(0, 2, 3)),
+            Face(Vector3(-0.5f, -0.7f, 0.5f).normalized(), listOf(0, 2, 4)),
+            Face(Vector3(0f, 0.9f, -0.2f).normalized(), listOf(1, 5, 6)),
+            Face(Vector3(0f, 0f, -1f), listOf(6, 8, 7, 9))
         )
     )
 
@@ -571,7 +802,57 @@ object ShipBlueprints {
             maxSpeedMps = "0.0 LM (Rotational 0.4 rad/s)",
             hyperdriveCapable = false,
             weaponMounts = "Heavy Defense Turrets & Police Vipers",
-            description = "Dodecahedral space station featuring internal anti-gravity docking bays. Protected by Viper patrols and station defense batteries."
+            description = "Iconic cuboctahedral orbital space station featuring internal anti-gravity docking bays, continuous axial rotation, and flashing entrance beacons."
+        ),
+        ShipLoreData(
+            blueprint = DODEC,
+            manufacturer = "Galactic Cooperative Corporate Worlds",
+            dimensions = "1.2 x 1.2 x 1.2 km (Heavy)",
+            cargoCapacity = "N/A (Corporate Super-Station)",
+            maxSpeedMps = "0.0 LM (Rotational 0.35 rad/s)",
+            hyperdriveCapable = false,
+            weaponMounts = "Naval Defense Batteries & Elite Police Wings",
+            description = "Majestic 12-sided regular pentagonal dodecahedron space station situated in wealthy high-tech corporate state systems."
+        ),
+        ShipLoreData(
+            blueprint = KRAIT,
+            manufacturer = "Novi Sad Shipyards (Pirate Outlaw Variant)",
+            dimensions = "40 x 14 x 75 ft",
+            cargoCapacity = "0 Tonnes",
+            maxSpeedMps = "0.38 LM",
+            hyperdriveCapable = false,
+            weaponMounts = "Fore Beam Laser",
+            description = "Iconic angular triangular outlaw raider from original Elite. Notorious for lightning-fast diving attack passes against merchant convoys."
+        ),
+        ShipLoreData(
+            blueprint = GECKO,
+            manufacturer = "Ace & Aron Interplanetary",
+            dimensions = "38 x 14 x 45 ft",
+            cargoCapacity = "3 Tonnes",
+            maxSpeedMps = "0.42 LM",
+            hyperdriveCapable = true,
+            weaponMounts = "Fore Pulse Laser",
+            description = "Agile pirate light interceptor and courier craft with swept-back wings. Highly nimble in dogfights."
+        ),
+        ShipLoreData(
+            blueprint = ASP_MK_2,
+            manufacturer = "Galactic Navy Shipyards",
+            dimensions = "70 x 25 x 75 ft",
+            cargoCapacity = "0 Tonnes (Military Armor)",
+            maxSpeedMps = "0.36 LM",
+            hyperdriveCapable = true,
+            weaponMounts = "Fore Military Laser + Dual Missiles",
+            description = "Heavy military attack and reconnaissance craft with octagonal hull plating and heavy-duty armor shielding."
+        ),
+        ShipLoreData(
+            blueprint = MORAY,
+            manufacturer = "Marine Trench Engineering, Spant",
+            dimensions = "60 x 25 x 65 ft",
+            cargoCapacity = "7 Tonnes",
+            maxSpeedMps = "0.34 LM",
+            hyperdriveCapable = true,
+            weaponMounts = "Fore Beam Laser",
+            description = "Unique dual-environment aquatic and space combat boat with diamond cross-section and dorsal stabilizer fin."
         ),
         ShipLoreData(
             blueprint = SIDEWINDER,

@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">Elite</string>
+    <string name="default_web_client_id" translatable="false">5394070656-6qggpj1942aob2bu4pq8c2g0b5g4s0ne.apps.googleusercontent.com</string>
 </resources>

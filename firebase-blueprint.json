@@ -1,0 +1,64 @@
+{
+  "entities": {
+    "TelemetryEvent": {
+      "title": "Gameplay Telemetry Event",
+      "description": "Granular action frame or combat incident collected from active player or bot gameplay for AI strategy training.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "The authenticated pilot user ID." },
+        "sessionId": { "type": "string", "description": "Unique flight/combat session UUID." },
+        "timestamp": { "type": "string", "format": "date-time", "description": "Server timestamp of event recording." },
+        "eventType": {
+          "type": "string",
+          "enum": ["COMBAT_LASER_PULSE", "MISSILE_LAUNCH", "ECM_TRIGGERED", "ENERGY_BOMB_DETONATION", "SHIELD_CRITICAL", "ENEMY_DESTROYED", "TRADE_TRANSACTION", "MINING_CHUNK_SCOOPED", "HYPERSPACE_JUMP", "DOCKING_SUCCESS", "DOCKING_CRASH", "WAR_SECTOR_ENGAGEMENT"],
+          "description": "Category of gameplay action."
+        },
+        "targetShipType": { "type": "string", "description": "Target entity blueprint name if applicable." },
+        "playerShipSpeed": { "type": "number", "description": "Current player flight speed (0-40)." },
+        "playerShields": { "type": "number", "description": "Front/aft shield total." },
+        "playerEnergy": { "type": "number", "description": "Energy bank percentage (0-100)." },
+        "targetDistance": { "type": "number", "description": "Distance to targeted spacecraft in meters." },
+        "targetRelativeAngle": { "type": "number", "description": "Angle error from crosshairs." },
+        "combatRank": { "type": "string", "description": "Player combat rank title at time of event." },
+        "tacticalAction": { "type": "string", "description": "Bot or player tactical maneuver decision." },
+        "outcomeSuccess": { "type": "boolean", "description": "Whether tactical action resulted in hit/kill/profitable trade." },
+        "systemName": { "type": "string", "description": "Current star system name." },
+        "isAutoPlay": { "type": "boolean", "description": "Whether action was driven by auto-play bot algorithm." }
+      },
+      "required": ["userId", "sessionId", "eventType", "timestamp", "combatRank", "outcomeSuccess"]
+    },
+    "DatasetSession": {
+      "title": "Gameplay Training Session",
+      "description": "Aggregated summary of an entire play session used to weight reinforcement learning training sets.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "The pilot user ID." },
+        "pilotCallsign": { "type": "string", "description": "Pilot commander callsign name." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Session creation server timestamp." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Last update server timestamp." },
+        "totalKills": { "type": "integer", "description": "Total hostiles defeated in session." },
+        "laserShotsFired": { "type": "integer", "description": "Total pulse/beam laser shots fired." },
+        "laserHits": { "type": "integer", "description": "Total laser hits landed on targets." },
+        "accuracyRate": { "type": "number", "description": "Shot accuracy percentage (0.0 - 100.0)." },
+        "missilesFired": { "type": "integer", "description": "Number of homing missiles fired." },
+        "ecmSuccessCount": { "type": "integer", "description": "Incoming missiles neutralized by ECM." },
+        "creditsEarned": { "type": "number", "description": "Credits profit generated from trading/bounties." },
+        "survivalDurationSec": { "type": "integer", "description": "Session duration alive in seconds." },
+        "bestStrategyArchetype": { "type": "string", "description": "Classified optimal bot strategy: AGGRESSIVE_DOGFIGHTER, ENERGY_CONSERVING_SNIPER, TACTICAL_ECM_KITER, WEALTH_MAXIMIZER." },
+        "sampleCount": { "type": "integer", "description": "Total telemetry records captured in this session." },
+        "status": { "type": "string", "enum": ["ACTIVE", "COMPLETED", "SUBMITTED_FOR_TRAINING"], "description": "Dataset ingestion status." }
+      },
+      "required": ["userId", "pilotCallsign", "createdAt", "updatedAt", "totalKills", "accuracyRate", "status"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}/sessions/{sessionId}": {
+      "schema": { "$ref": "#/entities/DatasetSession" },
+      "description": "Aggregated game training sessions belonging to a specific pilot."
+    },
+    "/users/{userId}/sessions/{sessionId}/telemetry/{telemetryId}": {
+      "schema": { "$ref": "#/entities/TelemetryEvent" },
+      "description": "High-frequency frame-level tactical telemetry events collected during gameplay for bot strategy dataset training."
+    }
+  }
+}

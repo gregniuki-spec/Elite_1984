@@ -1,0 +1,100 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidTimestamp(val) {
+      return val is timestamp && val <= request.time;
+    }
+
+    function isValidSession(data, userId) {
+      return data.userId == userId &&
+             data.pilotCallsign is string && data.pilotCallsign.size() >= 1 && data.pilotCallsign.size() <= 40 &&
+             data.totalKills is int && data.totalKills >= 0 &&
+             (data.accuracyRate is number || data.accuracyRate is int) &&
+             data.status in ['ACTIVE', 'COMPLETED', 'SUBMITTED_FOR_TRAINING'] &&
+             (!('laserShotsFired' in data) || (data.laserShotsFired is int && data.laserShotsFired >= 0)) &&
+             (!('laserHits' in data) || (data.laserHits is int && data.laserHits >= 0)) &&
+             (!('missilesFired' in data) || (data.missilesFired is int && data.missilesFired >= 0)) &&
+             (!('ecmSuccessCount' in data) || (data.ecmSuccessCount is int && data.ecmSuccessCount >= 0)) &&
+             (!('creditsEarned' in data) || (data.creditsEarned is number || data.creditsEarned is int)) &&
+             (!('survivalDurationSec' in data) || (data.survivalDurationSec is int && data.survivalDurationSec >= 0)) &&
+             (!('sampleCount' in data) || (data.sampleCount is int && data.sampleCount >= 0)) &&
+             (!('bestStrategyArchetype' in data) || (data.bestStrategyArchetype is string && data.bestStrategyArchetype.size() <= 64));
+    }
+
+    function isValidTelemetry(data, userId) {
+      return data.userId == userId &&
+             data.sessionId is string && data.sessionId.size() >= 1 && data.sessionId.size() <= 64 &&
+             data.eventType in [
+               'COMBAT_LASER_PULSE', 'MISSILE_LAUNCH', 'ECM_TRIGGERED', 'ENERGY_BOMB_DETONATION',
+               'SHIELD_CRITICAL', 'ENEMY_DESTROYED', 'TRADE_TRANSACTION', 'MINING_CHUNK_SCOOPED',
+               'HYPERSPACE_JUMP', 'DOCKING_SUCCESS', 'DOCKING_CRASH', 'WAR_SECTOR_ENGAGEMENT'
+             ] &&
+             data.combatRank is string && data.combatRank.size() >= 1 && data.combatRank.size() <= 32 &&
+             data.outcomeSuccess is bool &&
+             (!('targetShipType' in data) || (data.targetShipType is string && data.targetShipType.size() <= 32)) &&
+             (!('playerShipSpeed' in data) || (data.playerShipSpeed is number || data.playerShipSpeed is int)) &&
+             (!('playerShields' in data) || (data.playerShields is number || data.playerShields is int)) &&
+             (!('playerEnergy' in data) || (data.playerEnergy is number || data.playerEnergy is int)) &&
+             (!('targetDistance' in data) || (data.targetDistance is number || data.targetDistance is int)) &&
+             (!('targetRelativeAngle' in data) || (data.targetRelativeAngle is number || data.targetRelativeAngle is int)) &&
+             (!('tacticalAction' in data) || (data.tacticalAction is string && data.tacticalAction.size() <= 64)) &&
+             (!('systemName' in data) || (data.systemName is string && data.systemName.size() <= 32)) &&
+             (!('isAutoPlay' in data) || data.isAutoPlay is bool);
+    }
+
+    match /users/{userId}/sessions/{sessionId} {
+      allow get, list: if isOwner(userId);
+
+      allow create: if isOwner(userId) &&
+                       request.resource.data.userId == userId &&
+                       request.resource.data.keys().hasAll(['userId', 'pilotCallsign', 'createdAt', 'updatedAt', 'totalKills', 'accuracyRate', 'status']) &&
+                       request.resource.data.keys().hasOnly([
+                         'userId', 'pilotCallsign', 'createdAt', 'updatedAt', 'totalKills', 'laserShotsFired',
+                         'laserHits', 'accuracyRate', 'missilesFired', 'ecmSuccessCount', 'creditsEarned',
+                         'survivalDurationSec', 'bestStrategyArchetype', 'sampleCount', 'status'
+                       ]) &&
+                       isValidTimestamp(request.resource.data.createdAt) &&
+                       isValidTimestamp(request.resource.data.updatedAt) &&
+                       isValidSession(request.resource.data, userId);
+
+      allow update: if isOwner(userId) &&
+                       request.resource.data.userId == userId &&
+                       request.resource.data.createdAt == resource.data.createdAt &&
+                       isValidTimestamp(request.resource.data.updatedAt) &&
+                       isValidSession(request.resource.data, userId) &&
+                       request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+                         'pilotCallsign', 'updatedAt', 'totalKills', 'laserShotsFired', 'laserHits',
+                         'accuracyRate', 'missilesFired', 'ecmSuccessCount', 'creditsEarned',
+                         'survivalDurationSec', 'bestStrategyArchetype', 'sampleCount', 'status'
+                       ]);
+
+      allow delete: if isOwner(userId);
+
+      match /telemetry/{telemetryId} {
+        allow get, list: if isOwner(userId);
+
+        allow create: if isOwner(userId) &&
+                         request.resource.data.userId == userId &&
+                         request.resource.data.keys().hasAll(['userId', 'sessionId', 'eventType', 'timestamp', 'combatRank', 'outcomeSuccess']) &&
+                         request.resource.data.keys().hasOnly([
+                           'userId', 'sessionId', 'eventType', 'timestamp', 'combatRank', 'outcomeSuccess',
+                           'targetShipType', 'playerShipSpeed', 'playerShields', 'playerEnergy',
+                           'targetDistance', 'targetRelativeAngle', 'tacticalAction', 'systemName', 'isAutoPlay'
+                         ]) &&
+                         isValidTimestamp(request.resource.data.timestamp) &&
+                         isValidTelemetry(request.resource.data, userId);
+
+        allow update, delete: if isOwner(userId);
+      }
+    }
+  }
+}

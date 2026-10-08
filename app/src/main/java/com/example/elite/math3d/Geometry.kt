@@ -32,6 +32,8 @@ data class Vector3(
         z * v.x - x * v.z,
         x * v.y - y * v.x
     )
+
+    fun distanceTo(other: Vector3): Float = (this - other).length()
 }
 
 data class Point2D(
@@ -70,6 +72,42 @@ class Matrix3x3(
         val IDENTITY = Matrix3x3()
         fun identity() = Matrix3x3()
 
+        fun rotationX(angle: Float): Matrix3x3 {
+            val c = cos(angle)
+            val s = sin(angle)
+            return Matrix3x3(
+                floatArrayOf(
+                    1f, 0f, 0f,
+                    0f, c, -s,
+                    0f, s, c
+                )
+            )
+        }
+
+        fun rotationY(angle: Float): Matrix3x3 {
+            val c = cos(angle)
+            val s = sin(angle)
+            return Matrix3x3(
+                floatArrayOf(
+                    c, 0f, s,
+                    0f, 1f, 0f,
+                    -s, 0f, c
+                )
+            )
+        }
+
+        fun rotationZ(angle: Float): Matrix3x3 {
+            val c = cos(angle)
+            val s = sin(angle)
+            return Matrix3x3(
+                floatArrayOf(
+                    c, -s, 0f,
+                    s, c, 0f,
+                    0f, 0f, 1f
+                )
+            )
+        }
+
         fun rotationXYZ(pitch: Float, yaw: Float, roll: Float): Matrix3x3 {
             val cp = cos(pitch)
             val sp = sin(pitch)
@@ -84,6 +122,20 @@ class Matrix3x3(
                     cy * cr + sy * sp * sr, -cy * sr + sy * sp * cr, sy * cp,
                     cp * sr,                cp * cr,                 -sp,
                     -sy * cr + cy * sp * sr, sy * sr + cy * sp * cr, cy * cp
+                )
+            )
+        }
+
+        fun rotationAxis(axis: Vector3, angle: Float): Matrix3x3 {
+            val a = axis.normalized()
+            val c = cos(angle)
+            val s = sin(angle)
+            val t = 1f - c
+            return Matrix3x3(
+                floatArrayOf(
+                    t * a.x * a.x + c,       t * a.x * a.y - s * a.z, t * a.x * a.z + s * a.y,
+                    t * a.x * a.y + s * a.z, t * a.y * a.y + c,       t * a.y * a.z - s * a.x,
+                    t * a.x * a.z - s * a.y, t * a.y * a.z + s * a.x, t * a.z * a.z + c
                 )
             )
         }

@@ -7,6 +7,9 @@ package com.example.elite.model
 
 enum class GameScreen {
     SPACE_FLIGHT,
+    BATTLE_ARENA,
+    FLEET_STRATEGY,
+    RESOURCE_EXPLORATION,
     FLIGHT_MANUAL,
     SHIP_ENCYCLOPEDIA,
     MARKET_PRICES,
@@ -16,7 +19,8 @@ enum class GameScreen {
     STATUS,
     INVENTORY,
     EQUIP_SHIP,
-    ASM_INSPECTOR
+    ASM_INSPECTOR,
+    AI_DATASET_TRAINING
 }
 
 enum class CombatRank(val title: String, val scoreNeeded: Int) {
@@ -66,7 +70,11 @@ data class SystemData(
     val species: String,       // Human Colonials or procedural alien
     val seed0: Int,
     val seed1: Int,
-    val seed2: Int
+    val seed2: Int,
+    val planetType: PlanetType = PlanetType.fromSeeds(seed0, seed1, seed2, economy),
+    val starType: StarType = StarType.fromSeeds(seed0, seed1, seed2),
+    val faction: SystemFaction = SystemFaction.fromGovernment(government, seed1),
+    val securityLevel: SecurityLevel = SecurityLevel.fromGovernment(government)
 )
 
 data class Commodity(
@@ -112,7 +120,18 @@ data class CommanderState(
     var energyBanks: Float = 100f,       // 4 banks of 25f
     var altitude: Float = 50f,
     var cabinTemp: Float = 10f,
-    var laserTemp: Float = 0f
+    var laserTemp: Float = 0f,
+    var hullReinforcementLevel: Int = 0,
+    var maxHullIntegrity: Float = 100f,
+    var currentHullIntegrity: Float = 100f,
+    var armorRatingPercent: Int = 0,
+    var cargoCapacityTier: Int = 0,
+    var weaponCoolingTier: Int = 0,
+    var weaponCoolingMultiplier: Float = 1.0f,
+    var missileCapacity: Int = 4,
+    val investments: MutableList<ColonyInvestment> = mutableListOf(),
+    val activeContracts: MutableList<StrategicContract> = mutableListOf(),
+    var lastDividendEarningsDeciCr: Long = 0L
 ) {
     var cargoCapacity: Int
         get() = cargoHoldMax

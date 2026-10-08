@@ -22,8 +22,22 @@ data class SpaceEntity(
     var velocity: Vector3 = Vector3(0f, 0f, 0f),
     var isHostile: Boolean = false,
     var shields: Float = 100f,
-    var isDestroyed: Boolean = false
+    var isDestroyed: Boolean = false,
+    var cargoCommodityId: Int? = null
 )
+
+enum class CombatScenario(
+    val title: String,
+    val description: String,
+    val rewardCr: Int,
+    val difficulty: String
+) {
+    PIRATE_AMBUSH("PIRATE RAIDERS", "Sidewinder & Mamba pirate wing hunting merchant convoys.", 180, "STANDARD"),
+    THARGOID_INVASION("THARGOID MOTHERSHIP", "Terrifying alien Mothership deploying swarming Thargons.", 450, "EXTREME"),
+    VIPER_POLICE_CHALLENGE("POLICE INTERCEPT", "Galactic Patrol Vipers responding to illegal activity.", 240, "HARD"),
+    ANACONDA_CRUISER_SIEGE("HEAVY CRUSADER", "Armored Anaconda heavy battlecruiser with fighter wing.", 550, "VERY HARD"),
+    SECTOR_WAR_100_BOTS("100-BOT SECTOR WAR", "Massive multi-faction war with up to 100 AI bots and players.", 1000, "WARZONE")
+}
 
 data class Star(
     var x: Float,
@@ -51,11 +65,23 @@ enum class NavTarget(val title: String) {
     SUN("SUN")
 }
 
+enum class AutoPlayMode(val title: String, val badge: String) {
+    OFF("MANUAL", "OFF"),
+    COMBAT_ACE("AUTO COMBAT", "ACE"),
+    TRADER_EXPLORER("AUTO TRADE/MINE", "TRADER"),
+    SURVIVAL_DEFENSE("AUTO DEFEND", "DEFEND"),
+    TRAINED_NEURAL_BOT("TRAINED AI BRAIN", "NEURAL")
+}
+
 class FlightEngine(
     val commander: CommanderState,
     val soundSynth: BbcSoundSynth,
     var onDocked: () -> Unit = {},
-    var onHyperspaceComplete: (SystemData) -> Unit = {}
+    var onHyperspaceComplete: (SystemData) -> Unit = {},
+    var onLaserFiredCallback: (Boolean) -> Unit = {},
+    var onMissileFiredCallback: () -> Unit = {},
+    var onEcmSuccessCallback: () -> Unit = {},
+    var onBountyEarnedCallback: (Double) -> Unit = {}
 ) {
     // Flight state
     var speed: Float = 0f
@@ -92,8 +118,13 @@ class FlightEngine(
     var sunEntity: SpaceEntity? = null
     var navTarget: NavTarget = NavTarget.STATION
 
-    // Autopilot & Hyperspace
+    // Autopilot, Auto-Play AI & Hyperspace
     var isDockingComputerActive: Boolean = false
+    var autoPlayMode: AutoPlayMode = AutoPlayMode.OFF
+    val isAutoPlayActive: Boolean get() = autoPlayMode != AutoPlayMode.OFF
+    var autoPlayStatusText: String = ""
+    var autoPlayLaserCooldown: Float = 0f
+    var autoPlayMissileCooldown: Float = 0f
     var hyperspaceCountdown: Int = -1
 
     var statusMessage: String = ""
@@ -169,10 +200,11 @@ class FlightEngine(
         isSolarScooping = false
         soundSynth.stopBlueDanube()
 
-        // 1. Spawn Coriolis Space Station
+        // 1. Spawn Space Station (Dodecahedron in high-tech systems, Coriolis otherwise)
+        val stationBp = if ((commander.currentSystemId % 3) == 0) ShipBlueprints.DODEC else ShipBlueprints.CORIOLIS
         val station = SpaceEntity(
             id = 1L,
-            blueprint = ShipBlueprints.CORIOLIS,
+            blueprint = stationBp,
             position = Vector3(0f, 0f, 1600f),
             shields = 1000f
         )
@@ -203,7 +235,11 @@ class FlightEngine(
         val trafficPool = listOf(
             ShipBlueprints.SIDEWINDER to true,
             ShipBlueprints.MAMBA to true,
+            ShipBlueprints.KRAIT to true,
+            ShipBlueprints.GECKO to true,
             ShipBlueprints.VIPER to false,
+            ShipBlueprints.ASP_MK_2 to false,
+            ShipBlueprints.MORAY to false,
             ShipBlueprints.FER_DE_LANCE to false,
             ShipBlueprints.PYTHON to false,
             ShipBlueprints.ANACONDA to false,
@@ -314,9 +350,11 @@ class FlightEngine(
         currentPitch += pitchRate * dt
         currentRoll += rollRate * dt
 
-        // Docking computer autopilot
+        // Docking computer autopilot & Auto-Play AI
         if (isDockingComputerActive) {
             updateAutopilot(dt)
+        } else if (isAutoPlayActive) {
+            updateAutoPlay(dt)
         }
 
         // Stardust animation (STARS routine)
@@ -409,15 +447,15 @@ class FlightEngine(
             relPos = rotMatrix.transform(relPos)
             e.position = relPos
 
-            // Coriolis Station rotation
-            if (e.blueprint == ShipBlueprints.CORIOLIS) {
+            // Space Station continuous axial rotation (Coriolis & Dodec)
+            if (e.blueprint == ShipBlueprints.CORIOLIS || e.blueprint == ShipBlueprints.DODEC) {
                 e.rotation = Vector3(
                     e.rotation.x,
                     e.rotation.y,
-                    e.rotation.z + 0.4f * dt
+                    e.rotation.z + 0.38f * dt
                 )
 
-                // Check manual or autopilot docking into Coriolis entrance slot
+                // Check manual or autopilot docking into space station entrance slot
                 if (relPos.z in 20f..180f && abs(relPos.x) < 45f && abs(relPos.y) < 45f) {
                     performDocking()
                     return
@@ -429,14 +467,27 @@ class FlightEngine(
                     e.rotation.y + 0.05f * dt,
                     e.rotation.z
                 )
+            } else if (e.blueprint == ShipBlueprints.ASTEROID) {
+                // 3D tumbling tumbling rocky body
+                e.rotation = Vector3(
+                    e.rotation.x + 0.25f * dt,
+                    e.rotation.y + 0.45f * dt,
+                    e.rotation.z + 0.18f * dt
+                )
             } else if (e.blueprint == ShipBlueprints.CANISTER) {
-                // Interactive Cargo Scooping!
+                // Drifting tumbling cargo canister
+                e.rotation = Vector3(
+                    e.rotation.x + 0.15f * dt,
+                    e.rotation.y + 0.3f * dt,
+                    e.rotation.z
+                )
+                // Interactive Cargo & Mineral Scooping!
                 val dist = e.position.length()
-                if (dist < 65f && speed <= 25f) {
-                    if (commander.freeCargoSpace() > 0) {
-                        // Scoop canister
+                if (dist < 75f && speed <= 28f) {
+                    val scoopedId = e.cargoCommodityId ?: Random.nextInt(17)
+                    val isPrecious = scoopedId in listOf(13, 14, 15)
+                    if (isPrecious || commander.freeCargoSpace() > 0) {
                         e.isDestroyed = true
-                        val scoopedId = Random.nextInt(17)
                         commander.cargo[scoopedId] = (commander.cargo[scoopedId] ?: 0) + 1
                         soundSynth.playBeep(true)
                         val commodityNames = listOf(
@@ -444,8 +495,9 @@ class FlightEngine(
                             "Luxuries", "Narcotics", "Computers", "Machinery", "Alloys",
                             "Firearms", "Furs", "Minerals", "Gold", "Platinum", "Gem-Stones", "Alien Items"
                         )
+                        val unit = if (scoopedId == 13 || scoopedId == 14) "kg" else if (scoopedId == 15) "g" else "t"
                         val name = commodityNames.getOrElse(scoopedId) { "Minerals" }
-                        showMessage("CARGO SCOOPED: 1t $name!")
+                        showMessage("SCOOPED: 1$unit $name!")
                     } else {
                         if (Random.nextFloat() < 0.1f) {
                             showMessage("CARGO HOLD FULL")
@@ -453,20 +505,39 @@ class FlightEngine(
                     }
                 }
             } else {
-                // AI behavior
+                // AI behavior & 3D Flight Maneuvers
                 if (e.isHostile) {
                     // Turn towards player and fire lasers
                     val dir = (Vector3(0f, 0f, 0f) - relPos).normalized()
                     e.position = e.position + dir * (e.blueprint.maxSpeed * 0.5f * dt)
 
+                    // Authentic 3D banking, pitch, and roll combat maneuvers
+                    val targetPitch = kotlin.math.atan2(relPos.y, relPos.z).coerceIn(-1.2f, 1.2f)
+                    val targetYaw = -kotlin.math.atan2(relPos.x, relPos.z).coerceIn(-1.5f, 1.5f)
+                    val targetRoll = (targetYaw * 1.35f).coerceIn(-1.1f, 1.1f)
+
+                    e.rotation = Vector3(
+                        e.rotation.x + (targetPitch - e.rotation.x) * (2.2f * dt),
+                        e.rotation.y + (targetYaw - e.rotation.y) * (2.2f * dt),
+                        e.rotation.z + (targetRoll - e.rotation.z) * (2.2f * dt)
+                    )
+
                     // Enemy shooting chance
                     if (relPos.z in 100f..800f && Random.nextFloat() < 0.03f) {
-                        commander.forwardShield = (commander.forwardShield - 8f).coerceAtLeast(0f)
-                        if (commander.forwardShield <= 0f) {
-                            commander.energyBanks = (commander.energyBanks - 10f).coerceAtLeast(0f)
+                        val incomingLaser = 8f
+                        if (commander.forwardShield >= incomingLaser) {
+                            commander.forwardShield -= incomingLaser
+                        } else {
+                            val shieldBleed = incomingLaser - commander.forwardShield
+                            commander.forwardShield = 0f
+                            // Armor plating mitigates hull damage
+                            val armorMitigation = (commander.armorRatingPercent / 100f).coerceIn(0f, 0.5f)
+                            val hullHit = shieldBleed * (1f - armorMitigation)
+                            commander.currentHullIntegrity = (commander.currentHullIntegrity - hullHit).coerceAtLeast(0f)
+                            commander.energyBanks = (commander.energyBanks - 6f).coerceAtLeast(0f)
                         }
                         soundSynth.playExplosion()
-                        showMessage("WARNING: HOSTILE LASER HIT!")
+                        showMessage("WARNING: HOSTILE LASER HIT! [HULL ${commander.currentHullIntegrity.toInt()}/${commander.maxHullIntegrity.toInt()}]")
                     }
 
                     // Enemy missile launch chance
@@ -487,27 +558,32 @@ class FlightEngine(
         }
         entities.removeAll(toRemove)
 
-        // Recharge shields and cool lasers
+        // Recharge shields and cool lasers (enhanced by Weapon Cooling Radiator Tier)
         if (commander.energyBanks > 20f) {
             if (commander.forwardShield < 100f) commander.forwardShield = (commander.forwardShield + 3f * dt).coerceAtMost(100f)
             if (commander.aftShield < 100f) commander.aftShield = (commander.aftShield + 3f * dt).coerceAtMost(100f)
         }
         if (commander.laserTemp > 0f) {
-            commander.laserTemp = (commander.laserTemp - 8f * dt).coerceAtLeast(0f)
+            val coolingSpeed = 8f * commander.weaponCoolingMultiplier
+            commander.laserTemp = (commander.laserTemp - coolingSpeed * dt).coerceAtLeast(0f)
         }
 
         // Incoming hostile missile countdown check
         if (incomingMissileCountdownMs > 0L && System.currentTimeMillis() > incomingMissileCountdownMs) {
             incomingMissileCountdownMs = 0L
             soundSynth.playExplosion()
-            if (commander.forwardShield > 40f) {
-                commander.forwardShield -= 40f
+            val missileDmg = 40f
+            if (commander.forwardShield >= missileDmg) {
+                commander.forwardShield -= missileDmg
             } else {
-                val rem = 40f - commander.forwardShield
+                val rem = missileDmg - commander.forwardShield
                 commander.forwardShield = 0f
-                commander.energyBanks = (commander.energyBanks - rem).coerceAtLeast(0f)
+                val armorMitigation = (commander.armorRatingPercent / 100f).coerceIn(0f, 0.5f)
+                val hullHit = rem * (1f - armorMitigation)
+                commander.currentHullIntegrity = (commander.currentHullIntegrity - hullHit).coerceAtLeast(0f)
+                commander.energyBanks = (commander.energyBanks - rem * 0.5f).coerceAtLeast(0f)
             }
-            showMessage("MISSILE IMPACT ON SHIELDS!")
+            showMessage("MISSILE IMPACT ON HULL! [${commander.currentHullIntegrity.toInt()}/${commander.maxHullIntegrity.toInt()}]")
         }
 
         // Auto target closest entity if none currently selected
@@ -551,6 +627,7 @@ class FlightEngine(
             }
 
         if (target != null) {
+            onLaserFiredCallback(true)
             val laserDamage = commander.laserFront.power.toFloat()
             target.shields -= laserDamage
             soundSynth.playExplosion()
@@ -564,9 +641,35 @@ class FlightEngine(
                     commander.cashDeciCredits += bounty * 10L
                     commander.killCount++
                     updateCombatRank()
+                    onBountyEarnedCallback(bounty.toDouble())
                     showMessage("${target.blueprint.name} DESTROYED! BOUNTY: ${bounty}.0 CR")
                 } else if (target.blueprint == ShipBlueprints.ASTEROID) {
-                    showMessage("ASTEROID DESTROYED")
+                    val mineralPool = listOf(
+                        12 to "Minerals",
+                        9 to "Alloys",
+                        13 to "Gold",
+                        14 to "Platinum",
+                        15 to "Gem-Stones"
+                    )
+                    val chosen = mineralPool[Random.nextInt(mineralPool.size)]
+                    val spawnCount = if (commander.laserFront.power >= 45) 3 else 2
+                    for (i in 0 until spawnCount) {
+                        val offset = Vector3(
+                            (Random.nextFloat() - 0.5f) * 70f,
+                            (Random.nextFloat() - 0.5f) * 70f,
+                            (Random.nextFloat() - 0.5f) * 70f
+                        )
+                        entities.add(
+                            SpaceEntity(
+                                id = Random.nextLong(),
+                                blueprint = ShipBlueprints.CANISTER,
+                                position = target.position + offset,
+                                shields = 20f,
+                                cargoCommodityId = chosen.first
+                            )
+                        )
+                    }
+                    showMessage("ASTEROID FRACTURED: ${chosen.second.uppercase()} DETECTED!")
                 } else if (target.blueprint == ShipBlueprints.CANISTER) {
                     showMessage("CARGO DESTROYED")
                 }
@@ -585,6 +688,8 @@ class FlightEngine(
             } else {
                 showMessage("HIT ON ${target.blueprint.name}!")
             }
+        } else {
+            onLaserFiredCallback(false)
         }
     }
 
@@ -624,6 +729,7 @@ class FlightEngine(
         commander.missiles--
         isMissileArmed = false
         soundSynth.playMissileLaunch()
+        onMissileFiredCallback()
         showMessage("MISSILE LAUNCHED!")
 
         // Direct hit on target
@@ -679,6 +785,7 @@ class FlightEngine(
         soundSynth.playHyperspace()
         if (incomingMissileCountdownMs > 0L) {
             incomingMissileCountdownMs = 0L
+            onEcmSuccessCallback()
             showMessage("ECM: INCOMING MISSILE DESTROYED!")
         } else {
             showMessage("ECM COUNTERMEASURE TRANSMITTED")
@@ -699,6 +806,200 @@ class FlightEngine(
         } else {
             showMessage("MANUAL PILOT ENGAGED")
             soundSynth.stopBlueDanube()
+        }
+    }
+
+    fun toggleAutoPlay(): AutoPlayMode {
+        autoPlayMode = when (autoPlayMode) {
+            AutoPlayMode.OFF -> AutoPlayMode.COMBAT_ACE
+            AutoPlayMode.COMBAT_ACE -> AutoPlayMode.TRADER_EXPLORER
+            AutoPlayMode.TRADER_EXPLORER -> AutoPlayMode.SURVIVAL_DEFENSE
+            AutoPlayMode.SURVIVAL_DEFENSE -> AutoPlayMode.TRAINED_NEURAL_BOT
+            AutoPlayMode.TRAINED_NEURAL_BOT -> AutoPlayMode.OFF
+        }
+        if (autoPlayMode != AutoPlayMode.OFF) {
+            soundSynth.playBeep(true)
+            showMessage("AUTO-PLAY: ${autoPlayMode.title}")
+            autoPlayStatusText = "ENGAGED: ${autoPlayMode.title}"
+        } else {
+            soundSynth.playBeep(false)
+            showMessage("AUTO-PLAY: DISENGAGED (MANUAL)")
+            autoPlayStatusText = ""
+            pitchRate = 0f
+            rollRate = 0f
+        }
+        return autoPlayMode
+    }
+
+    fun setAutoPlay(mode: AutoPlayMode) {
+        autoPlayMode = mode
+        if (mode != AutoPlayMode.OFF) {
+            soundSynth.playBeep(true)
+            showMessage("AUTO-PLAY: ${mode.title}")
+            autoPlayStatusText = "ENGAGED: ${mode.title}"
+        } else {
+            soundSynth.playBeep(false)
+            showMessage("AUTO-PLAY: DISENGAGED (MANUAL)")
+            autoPlayStatusText = ""
+            pitchRate = 0f
+            rollRate = 0f
+        }
+    }
+
+    private fun updateAutoPlay(dt: Float) {
+        if (autoPlayMode == AutoPlayMode.OFF || isDockingComputerActive) return
+
+        if (autoPlayMode == AutoPlayMode.TRAINED_NEURAL_BOT) {
+            val decision = com.example.elite.ai.TrainedTacticalBotEngine.evaluateTactics(this, commander, dt)
+            speed = (speed + (decision.desiredSpeed - speed) * 0.4f * dt).coerceIn(0f, maxSpeed)
+            pitchRate = decision.desiredPitchRate
+            rollRate = decision.desiredRollRate
+            autoPlayStatusText = "NEURAL AI: ${decision.action.title} (${(decision.confidence * 100).toInt()}%)"
+
+            if (decision.triggerEcm && commander.hasEcm) {
+                triggerEcm()
+            }
+            if (decision.fireLaser && commander.laserTemp < 85f) {
+                autoPlayLaserCooldown -= dt
+                if (autoPlayLaserCooldown <= 0f) {
+                    fireLaser()
+                    autoPlayLaserCooldown = 0.2f
+                }
+            }
+            if (decision.fireMissile && commander.missiles > 0) {
+                autoPlayMissileCooldown -= dt
+                if (autoPlayMissileCooldown <= 0f) {
+                    if (!isMissileArmed) armMissile() else fireMissile()
+                    autoPlayMissileCooldown = 2.0f
+                }
+            }
+            return
+        }
+
+        // 1. Threat & Survival Reaction (Auto-ECM & Auto-Energy Bomb)
+        if (incomingMissileCountdownMs > 0L) {
+            if (commander.hasEcm) {
+                triggerEcm()
+                autoPlayStatusText = "AUTO-ECM DEPLOYED"
+                return
+            }
+        }
+
+        // Auto Emergency Bomb if heavily damaged and surrounded
+        val criticalDanger = (commander.forwardShield < 15f && commander.aftShield < 15f && commander.currentHullIntegrity < 40f)
+        val surroundingHostiles = entities.count { it.isHostile && it.position.length() < 1200f }
+        if (criticalDanger && surroundingHostiles >= 2 && commander.hasEnergyBomb) {
+            triggerEnergyBomb()
+            autoPlayStatusText = "AUTO EMERGENCY BOMB DETONATED"
+            return
+        }
+
+        // 2. Select Auto-Play Target according to Mode
+        val target: SpaceEntity? = when (autoPlayMode) {
+            AutoPlayMode.COMBAT_ACE -> {
+                // Focus on closest hostile or high-value threat
+                entities.filter { !it.isDestroyed && it.isHostile && it.position.z > -100f }
+                    .minByOrNull { it.position.length() }
+                    ?: entities.filter { !it.isDestroyed && it.blueprint == ShipBlueprints.ASTEROID && it.position.z > 20f }
+                        .minByOrNull { it.position.length() }
+            }
+            AutoPlayMode.TRADER_EXPLORER -> {
+                // Priority 1: Floating cargo canisters to scoop
+                val canister = entities.filter { !it.isDestroyed && it.blueprint == ShipBlueprints.CANISTER && it.position.z > -50f }
+                    .minByOrNull { it.position.length() }
+                // Priority 2: Mineable asteroids
+                val asteroid = entities.filter { !it.isDestroyed && it.blueprint == ShipBlueprints.ASTEROID && it.position.z > 20f }
+                    .minByOrNull { it.position.length() }
+                // Priority 3: Defend against aggressive hostiles if attacked
+                val hostileAttacker = entities.filter { !it.isDestroyed && it.isHostile && it.position.length() < 800f }
+                    .minByOrNull { it.position.length() }
+
+                canister ?: (hostileAttacker ?: (asteroid ?: stationEntity))
+            }
+            AutoPlayMode.SURVIVAL_DEFENSE -> {
+                // Defend only if threatened; otherwise orbit safely or dock
+                val nearThreat = entities.filter { !it.isDestroyed && it.isHostile && it.position.length() < 1200f }
+                    .minByOrNull { it.position.length() }
+                nearThreat ?: stationEntity
+            }
+            AutoPlayMode.TRAINED_NEURAL_BOT -> null // Handled early above
+            AutoPlayMode.OFF -> null
+        }
+
+        lockedTarget = target
+
+        // 3. Autonomous Flight Steering towards or orbiting target
+        if (target != null && !target.isDestroyed) {
+            val tPos = target.position
+            val dist = tPos.length()
+
+            // If target is behind us (z <= 10f), execute quick 180 turnaround maneuver
+            if (tPos.z <= 10f) {
+                rollRate = if (tPos.x >= 0f) 0.85f else -0.85f
+                pitchRate = if (tPos.y >= 0f) -0.65f else 0.65f
+                speed = (speed + 2f * dt).coerceIn(12f, 24f)
+                autoPlayStatusText = "TURNING TOWARDS ${target.blueprint.name}"
+            } else {
+                // Target is in front hemisphere: compute angular tracking offsets
+                val screenX = (tPos.x / tPos.z) * 300f
+                val screenY = (tPos.y / tPos.z) * 300f
+
+                val deadzone = 12f
+                val desiredRoll = (-screenX * 0.015f).coerceIn(-1.0f, 1.0f)
+                val desiredPitch = (screenY * 0.015f).coerceIn(-1.0f, 1.0f)
+
+                rollRate = if (abs(screenX) > deadzone) desiredRoll else desiredRoll * 0.2f
+                pitchRate = if (abs(screenY) > deadzone) desiredPitch else desiredPitch * 0.2f
+
+                // Autonomous throttle control
+                val optimalDist = if (target.blueprint == ShipBlueprints.CANISTER) 40f else 350f
+                if (dist > optimalDist + 150f) {
+                    speed = (speed + 8f * dt).coerceAtMost(maxSpeed)
+                } else if (dist < optimalDist - 50f) {
+                    speed = (speed - 12f * dt).coerceAtLeast(6f)
+                } else {
+                    speed = (speed + (20f - speed) * 0.5f * dt).coerceIn(8f, 25f)
+                }
+
+                // Autonomous Cargo Scooping speed limit
+                if (target.blueprint == ShipBlueprints.CANISTER && dist < 120f) {
+                    speed = speed.coerceAtMost(22f) // Safe scooping speed is <= 28f
+                    autoPlayStatusText = "SCOOPING CARGO (${dist.toInt()}M)"
+                } else if (target.isHostile) {
+                    autoPlayStatusText = "TRACKING ${target.blueprint.name} (${dist.toInt()}M)"
+                } else {
+                    autoPlayStatusText = "APPROACHING ${target.blueprint.name}"
+                }
+
+                // 4. Autonomous Weapon Discharge
+                val isAimed = abs(screenX) < 45f && abs(screenY) < 45f && tPos.z in 60f..1100f
+                if (isAimed) {
+                    // Auto-Laser Fire
+                    autoPlayLaserCooldown -= dt
+                    if (autoPlayLaserCooldown <= 0f && commander.laserTemp < 85f) {
+                        fireLaser()
+                        autoPlayLaserCooldown = 0.22f // Burst firing cadence
+                    }
+
+                    // Auto-Missile Launch against armored/heavy hostiles
+                    val isHeavyTarget = target.blueprint.bounty >= 100 || target.blueprint == ShipBlueprints.ANACONDA || target.blueprint == ShipBlueprints.THARGOID
+                    autoPlayMissileCooldown -= dt
+                    if (autoPlayMissileCooldown <= 0f && target.isHostile && isHeavyTarget && commander.missiles > 0 && dist in 250f..850f) {
+                        if (!isMissileArmed) {
+                            armMissile()
+                        } else {
+                            fireMissile()
+                            autoPlayMissileCooldown = 6.0f
+                        }
+                    }
+                }
+            }
+        } else {
+            // No current target: cruise steadily forward, level wings
+            rollRate = -currentRoll * 0.4f
+            pitchRate = -currentPitch * 0.4f
+            speed = 18f
+            autoPlayStatusText = "PATROLLING SECTOR (SEARCHING TARGETS)"
         }
     }
 
@@ -757,6 +1058,163 @@ class FlightEngine(
         commander.currentSystemId = targetSystem.id
         resetSpaceEnvironment()
         onHyperspaceComplete(targetSystem)
+    }
+
+    fun spawnBattleWave(scenario: CombatScenario) {
+        entities.removeAll {
+            it.blueprint != ShipBlueprints.CORIOLIS &&
+            it.blueprint != ShipBlueprints.PLANET &&
+            it.blueprint != ShipBlueprints.SUN
+        }
+        lockedTarget = null
+        soundSynth.playMissileLaunch()
+        showMessage("ALERT: ${scenario.title} DETECTED!")
+
+        when (scenario) {
+            CombatScenario.PIRATE_AMBUSH -> {
+                entities.add(
+                    SpaceEntity(
+                        id = Random.nextLong(),
+                        blueprint = ShipBlueprints.MAMBA,
+                        position = Vector3(0f, 40f, 650f),
+                        isHostile = true,
+                        shields = 100f
+                    )
+                )
+                entities.add(
+                    SpaceEntity(
+                        id = Random.nextLong(),
+                        blueprint = ShipBlueprints.SIDEWINDER,
+                        position = Vector3(-220f, -30f, 850f),
+                        isHostile = true,
+                        shields = 60f
+                    )
+                )
+                entities.add(
+                    SpaceEntity(
+                        id = Random.nextLong(),
+                        blueprint = ShipBlueprints.SIDEWINDER,
+                        position = Vector3(220f, -30f, 850f),
+                        isHostile = true,
+                        shields = 60f
+                    )
+                )
+            }
+            CombatScenario.THARGOID_INVASION -> {
+                entities.add(
+                    SpaceEntity(
+                        id = Random.nextLong(),
+                        blueprint = ShipBlueprints.THARGOID,
+                        position = Vector3(0f, 60f, 750f),
+                        isHostile = true,
+                        shields = 240f
+                    )
+                )
+                for (i in 0 until 3) {
+                    val angle = (i * 2.0 * Math.PI / 3.0).toFloat()
+                    val tx = cos(angle) * 160f
+                    val ty = sin(angle) * 160f
+                    entities.add(
+                        SpaceEntity(
+                            id = Random.nextLong(),
+                            blueprint = ShipBlueprints.THARGON,
+                            position = Vector3(tx, ty + 60f, 650f + i * 50f),
+                            isHostile = true,
+                            shields = 40f
+                        )
+                    )
+                }
+            }
+            CombatScenario.VIPER_POLICE_CHALLENGE -> {
+                for (i in 0 until 3) {
+                    val px = (i - 1) * 220f
+                    entities.add(
+                        SpaceEntity(
+                            id = Random.nextLong(),
+                            blueprint = ShipBlueprints.VIPER,
+                            position = Vector3(px, 20f, 700f + abs(px)),
+                            isHostile = true,
+                            shields = 120f
+                        )
+                    )
+                }
+            }
+            CombatScenario.ANACONDA_CRUISER_SIEGE -> {
+                entities.add(
+                    SpaceEntity(
+                        id = Random.nextLong(),
+                        blueprint = ShipBlueprints.ANACONDA,
+                        position = Vector3(0f, 0f, 880f),
+                        isHostile = true,
+                        shields = 350f
+                    )
+                )
+                entities.add(
+                    SpaceEntity(
+                        id = Random.nextLong(),
+                        blueprint = ShipBlueprints.MAMBA,
+                        position = Vector3(-250f, 50f, 720f),
+                        isHostile = true,
+                        shields = 80f
+                    )
+                )
+                entities.add(
+                    SpaceEntity(
+                        id = Random.nextLong(),
+                        blueprint = ShipBlueprints.FER_DE_LANCE,
+                        position = Vector3(250f, 50f, 720f),
+                        isHostile = true,
+                        shields = 110f
+                    )
+                )
+            }
+            CombatScenario.SECTOR_WAR_100_BOTS -> {
+                // Spawn a massive skirmish wing of 18 active 3D dogfight craft in close camera radius
+                val warBlueprints = listOf(
+                    ShipBlueprints.COBRA_MK_3, ShipBlueprints.VIPER, ShipBlueprints.MAMBA,
+                    ShipBlueprints.SIDEWINDER, ShipBlueprints.KRAIT, ShipBlueprints.ASP_MK_2,
+                    ShipBlueprints.FER_DE_LANCE, ShipBlueprints.PYTHON, ShipBlueprints.THARGOID,
+                    ShipBlueprints.THARGON
+                )
+                for (i in 0 until 18) {
+                    val bp = warBlueprints[i % warBlueprints.size]
+                    val angle = (i * 2.0 * Math.PI / 18.0).toFloat()
+                    val dist = Random.nextFloat() * 1100f + 400f
+                    val elev = (Random.nextFloat() - 0.5f) * 600f
+                    val isPirateOrAlien = (i % 2 == 0)
+                    entities.add(
+                        SpaceEntity(
+                            id = Random.nextLong(),
+                            blueprint = bp,
+                            position = Vector3(cos(angle) * dist, elev, sin(angle) * dist + 700f),
+                            isHostile = isPirateOrAlien,
+                            shields = 80f + (i * 10f)
+                        )
+                    )
+                }
+            }
+        }
+    }
+
+    fun spawnAsteroidField(count: Int = 10) {
+        entities.removeAll { it.blueprint == ShipBlueprints.ASTEROID || it.blueprint == ShipBlueprints.CANISTER }
+        lockedTarget = null
+        soundSynth.playBeep(true)
+        showMessage("ASTEROID BELT: $count RESOURCE ROCKS DETECTED")
+
+        for (i in 0 until count) {
+            val angle = Random.nextFloat() * 2.0f * Math.PI.toFloat()
+            val dist = Random.nextFloat() * 1200f + 300f
+            val elevation = (Random.nextFloat() - 0.5f) * 450f
+            entities.add(
+                SpaceEntity(
+                    id = Random.nextLong(),
+                    blueprint = ShipBlueprints.ASTEROID,
+                    position = Vector3(cos(angle) * dist, elevation, sin(angle) * dist + 400f),
+                    shields = if (commander.laserFront.power >= 45) 45f else 75f
+                )
+            )
+        }
     }
 
     private fun updateCombatRank() {

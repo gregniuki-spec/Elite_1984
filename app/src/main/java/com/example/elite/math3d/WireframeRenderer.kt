@@ -43,63 +43,25 @@ object WireframeRenderer {
         viewHeight: Float,
         wireColor: Color = Color.White,
         strokeWidth: Float = 1.6f,
-        viewMatrix: Matrix3x3 = Matrix3x3.IDENTITY
+        viewMatrix: Matrix3x3 = Matrix3x3.IDENTITY,
+        renderStyle: RenderStyle = RenderStyle.AUTHENTIC_BACKFACE_CULLED
     ) {
-        // Transform entity position by camera view matrix
-        val pos = viewMatrix.transform(entity.position)
-        // Don't render if behind camera
-        if (pos.z <= 10f) return
-
-        val blueprint = entity.blueprint
-        val rot = entity.rotation
-        val rotMatrix = viewMatrix * Matrix3x3.rotationXYZ(rot.x, rot.y, rot.z)
-        val scale = blueprint.baseScale
-
-        val cx = viewWidth / 2f
-        val cy = viewHeight / 2f
-        val focalLength = 320f
-
-        // Transform vertices into world space
-        val projected2D = arrayOfNulls<Point2D>(blueprint.vertices.size)
-
-        for (i in blueprint.vertices.indices) {
-            val v = blueprint.vertices[i]
-            // Rotate local vertex
-            val rotated = rotMatrix.transform(v * scale)
-            // Translate to entity position in camera space
-            val worldV = rotated + pos
-
-            if (worldV.z > 5f) {
-                // Perspective projection (PROJ routine)
-                val projScale = focalLength / worldV.z
-                val sx = cx + worldV.x * projScale
-                val sy = cy - worldV.y * projScale // Invert Y for screen coords
-                projected2D[i] = Point2D(sx, sy)
-            }
-        }
-
-        // Draw edges connecting vertices
-        for (edge in blueprint.edges) {
-            if (edge.v1 in projected2D.indices && edge.v2 in projected2D.indices) {
-                val p1 = projected2D[edge.v1]
-                val p2 = projected2D[edge.v2]
-
-                if (p1 != null && p2 != null) {
-                    // Check if on screen
-                    val inside1 = p1.x in -200f..(viewWidth + 200f) && p1.y in -200f..(viewHeight + 200f)
-                    val inside2 = p2.x in -200f..(viewWidth + 200f) && p2.y in -200f..(viewHeight + 200f)
-
-                    if (inside1 || inside2) {
-                        drawScope.drawLine(
-                            color = wireColor,
-                            start = Offset(p1.x, p1.y),
-                            end = Offset(p2.x, p2.y),
-                            strokeWidth = strokeWidth
-                        )
-                    }
-                }
-            }
-        }
+        val center = Offset(viewWidth / 2f, viewHeight / 2f)
+        WireframeProjectionEngine.renderModel(
+            drawScope = drawScope,
+            blueprint = entity.blueprint,
+            worldPos = entity.position,
+            rotationXYZ = entity.rotation,
+            camMatrix = viewMatrix,
+            center = center,
+            viewScale = 1.0f,
+            focalLength = 320f,
+            renderStyle = renderStyle,
+            overrideColor = wireColor,
+            strokeWidth = strokeWidth,
+            enableDepthFade = true,
+            enableBeaconLights = true
+        )
     }
 
     /**
@@ -115,41 +77,24 @@ object WireframeRenderer {
         center: Offset,
         viewScale: Float = 1.0f,
         wireColor: Color = Color.White,
-        strokeWidth: Float = 2.0f
+        strokeWidth: Float = 2.0f,
+        renderStyle: RenderStyle = RenderStyle.AUTHENTIC_BACKFACE_CULLED
     ) {
-        val rotMatrix = Matrix3x3.rotationXYZ(rotX, rotY, rotZ)
-        val scale = blueprint.baseScale * viewScale
-        val focalLength = 400f
-        val cameraZ = 300f
-
-        val projected2D = arrayOfNulls<Point2D>(blueprint.vertices.size)
-
-        for (i in blueprint.vertices.indices) {
-            val v = blueprint.vertices[i]
-            val rotated = rotMatrix.transform(v * scale)
-            val z = cameraZ + rotated.z
-            if (z > 20f) {
-                val proj = focalLength / z
-                val sx = center.x + rotated.x * proj
-                val sy = center.y - rotated.y * proj
-                projected2D[i] = Point2D(sx, sy)
-            }
-        }
-
-        for (edge in blueprint.edges) {
-            if (edge.v1 in projected2D.indices && edge.v2 in projected2D.indices) {
-                val p1 = projected2D[edge.v1]
-                val p2 = projected2D[edge.v2]
-                if (p1 != null && p2 != null) {
-                    drawScope.drawLine(
-                        color = wireColor,
-                        start = Offset(p1.x, p1.y),
-                        end = Offset(p2.x, p2.y),
-                        strokeWidth = strokeWidth
-                    )
-                }
-            }
-        }
+        WireframeProjectionEngine.renderModel(
+            drawScope = drawScope,
+            blueprint = blueprint,
+            worldPos = Vector3(0f, 0f, 300f),
+            rotationXYZ = Vector3(rotX, rotY, rotZ),
+            camMatrix = Matrix3x3.IDENTITY,
+            center = center,
+            viewScale = viewScale,
+            focalLength = 400f,
+            renderStyle = renderStyle,
+            overrideColor = wireColor,
+            strokeWidth = strokeWidth,
+            enableDepthFade = false,
+            enableBeaconLights = true
+        )
     }
 
     /**

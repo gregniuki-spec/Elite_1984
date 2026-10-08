@@ -130,6 +130,19 @@ private fun DrawScope.drawLeftGauges(
     )
     curY += gap
 
+    // HL - Hull Integrity (Reinforced Hull HP)
+    drawGaugeBar(
+        label = "HL",
+        value = (commander.currentHullIntegrity / commander.maxHullIntegrity).coerceIn(0f, 1f),
+        origin = Offset(origin.x, curY),
+        width = size.width,
+        height = barHeight,
+        color = if (commander.currentHullIntegrity < commander.maxHullIntegrity * 0.4f) BBC_RED
+                else if (commander.currentHullIntegrity < commander.maxHullIntegrity) BBC_YELLOW
+                else BBC_GREEN
+    )
+    curY += gap
+
     // FU - Fuel (7.0 LY capacity = 70 deci-ly)
     drawGaugeBar(
         label = "FU",

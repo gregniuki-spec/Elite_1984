@@ -35,6 +35,9 @@ fun RedKeyNavigationBar(
 ) {
     val keys = listOf(
         RedKeyItem(GameScreen.SPACE_FLIGHT, "f0", "SPACE"),
+        RedKeyItem(GameScreen.BATTLE_ARENA, "f10", "BATTLE"),
+        RedKeyItem(GameScreen.FLEET_STRATEGY, "f12", "WAR 100"),
+        RedKeyItem(GameScreen.RESOURCE_EXPLORATION, "f11", "PROSPECT"),
         RedKeyItem(GameScreen.FLIGHT_MANUAL, "f1", "MANUAL"),
         RedKeyItem(GameScreen.SHIP_ENCYCLOPEDIA, "f2", "SHIPS"),
         RedKeyItem(GameScreen.MARKET_PRICES, "f7", "MARKET"),
@@ -44,6 +47,7 @@ fun RedKeyNavigationBar(
         RedKeyItem(GameScreen.STATUS, "f8", "STATUS"),
         RedKeyItem(GameScreen.INVENTORY, "f9", "HOLD"),
         RedKeyItem(GameScreen.EQUIP_SHIP, "f3", "EQUIP"),
+        RedKeyItem(GameScreen.AI_DATASET_TRAINING, "f13", "AI DATA"),
         RedKeyItem(GameScreen.ASM_INSPECTOR, "6502", "SOURCE")
     )
 
