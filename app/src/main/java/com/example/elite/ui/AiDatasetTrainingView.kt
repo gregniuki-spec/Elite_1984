@@ -141,17 +141,35 @@ fun AiDatasetTrainingView(
                         )
                     }
 
-                    Row {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
                         Button(
                             onClick = {
-                                flightEngine.autoPlayMode = com.example.elite.flight.AutoPlayMode.TRAINED_NEURAL_BOT
+                                flightEngine.toggleAutoPlay()
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (flightEngine.isAutoPlayActive) Color(0xFF6B1B6B) else Color(0xFF222830)
+                            ),
+                            shape = RoundedCornerShape(3.dp),
+                            modifier = Modifier.padding(end = 6.dp).testTag("training_cycle_auto_play_btn")
+                        ) {
+                            Text(
+                                text = "AUTO: ${flightEngine.autoPlayMode.badge}",
+                                color = if (flightEngine.isAutoPlayActive) BBC_YELLOW else BBC_WHITE,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        Button(
+                            onClick = {
+                                flightEngine.setAutoPlay(com.example.elite.flight.AutoPlayMode.TRAINED_NEURAL_BOT)
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E3A8A)),
                             shape = RoundedCornerShape(3.dp),
                             modifier = Modifier.padding(end = 6.dp).testTag("deploy_trained_ai_button")
                         ) {
                             Text(
-                                text = if (flightEngine.autoPlayMode == com.example.elite.flight.AutoPlayMode.TRAINED_NEURAL_BOT) "AI DEPLOYED (ACTIVE)" else "DEPLOY AI TO FLIGHT",
+                                text = if (flightEngine.autoPlayMode == com.example.elite.flight.AutoPlayMode.TRAINED_NEURAL_BOT) "NEURAL AI ACTIVE" else "DEPLOY NEURAL AI",
                                 color = Color.White,
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold
@@ -167,7 +185,7 @@ fun AiDatasetTrainingView(
                             modifier = Modifier.testTag("toggle_harvest_button")
                         ) {
                             Text(
-                                text = if (isRecording) "PAUSE RECORDING" else "RESUME HARVEST",
+                                text = if (isRecording) "PAUSE HARVEST" else "RESUME HARVEST",
                                 color = Color.White,
                                 fontSize = 10.sp
                             )
@@ -221,7 +239,7 @@ fun AiDatasetTrainingView(
         Spacer(modifier = Modifier.height(10.dp))
 
         Text(
-            text = "--- CLOUD STRATEGY DATASET SESSIONS (${sessions.size} RECORDED) ---",
+            text = "--- FLIGHT STRATEGY DATASET SESSIONS (${sessions.size} RECORDED) ---",
             color = BBC_WHITE,
             fontSize = 11.sp,
             fontWeight = FontWeight.Bold,
@@ -244,7 +262,7 @@ fun AiDatasetTrainingView(
                         text = if (currentUserId != null) {
                             "NO PREVIOUS DATASET SESSIONS FOUND FOR THIS PILOT.\nLAUNCH DOGFIGHT OR ENABLE AUTO-PLAY IN FLIGHT/WAR SIMULATION TO STREAM DATA."
                         } else {
-                            "PLEASE SIGN IN WITH GOOGLE TO SYNC AND ACCUMULATE CLOUD DATASET REINFORCEMENT SESSIONS ACROSS PLAYERS."
+                            "LOCAL TELEMETRY BUFFER ACTIVE. SIGN IN WITH GOOGLE TO SYNC AND ACCUMULATE CLOUD DATASET REINFORCEMENT SESSIONS ACROSS PLAYERS."
                         },
                         color = Color.LightGray,
                         fontSize = 11.sp,

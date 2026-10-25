@@ -1,8 +1,10 @@
 package com.example.elite.dataset.model
 
 import com.google.firebase.Timestamp
+import com.google.firebase.firestore.Exclude
 
 data class DatasetSessionEntity(
+    @get:Exclude var sessionId: String = "",
     val userId: String = "",
     val pilotCallsign: String = "",
     val createdAt: Timestamp? = null,

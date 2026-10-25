@@ -205,7 +205,7 @@ class FlightEngine(
         val station = SpaceEntity(
             id = 1L,
             blueprint = stationBp,
-            position = Vector3(0f, 0f, 1600f),
+            position = Vector3(0f, 0f, -800f),
             shields = 1000f
         )
         stationEntity = station
@@ -457,8 +457,10 @@ class FlightEngine(
 
                 // Check manual or autopilot docking into space station entrance slot
                 if (relPos.z in 20f..180f && abs(relPos.x) < 45f && abs(relPos.y) < 45f) {
-                    performDocking()
-                    return
+                    if (isDockingComputerActive || (speed <= 12f && !isAutoPlayActive)) {
+                        performDocking()
+                        return
+                    }
                 }
             } else if (e.blueprint == ShipBlueprints.PLANET || e.blueprint == ShipBlueprints.SUN) {
                 // Rotate planet / sun slowly
@@ -557,6 +559,17 @@ class FlightEngine(
             }
         }
         entities.removeAll(toRemove)
+
+        // Continuously replenish sector ships and asteroids so auto-play and dogfights never run dry
+        val activeTargetCount = entities.count {
+            it.blueprint != ShipBlueprints.CORIOLIS &&
+            it.blueprint != ShipBlueprints.DODEC &&
+            it.blueprint != ShipBlueprints.PLANET &&
+            it.blueprint != ShipBlueprints.SUN
+        }
+        if (activeTargetCount < 4) {
+            spawnPatrolReinforcement()
+        }
 
         // Recharge shields and cool lasers (enhanced by Weapon Cooling Radiator Tier)
         if (commander.energyBanks > 20f) {
@@ -1231,5 +1244,45 @@ class FlightEngine(
             else -> CombatRank.HARMLESS
         }
         commander.combatRank = rank
+    }
+
+    private fun spawnPatrolReinforcement() {
+        val trafficPool = listOf(
+            ShipBlueprints.SIDEWINDER to true,
+            ShipBlueprints.MAMBA to true,
+            ShipBlueprints.KRAIT to true,
+            ShipBlueprints.GECKO to true,
+            ShipBlueprints.VIPER to false,
+            ShipBlueprints.ASP_MK_2 to false,
+            ShipBlueprints.THARGOID to true,
+            ShipBlueprints.ASTEROID to false,
+            ShipBlueprints.CANISTER to false
+        )
+        val (bp, defaultHostile) = trafficPool[Random.nextInt(trafficPool.size)]
+        val isHostile = if (bp == ShipBlueprints.VIPER || bp == ShipBlueprints.CANISTER || bp == ShipBlueprints.ASTEROID) {
+            false
+        } else if (bp == ShipBlueprints.THARGOID || bp == ShipBlueprints.MAMBA) {
+            true
+        } else {
+            defaultHostile && Random.nextBoolean()
+        }
+
+        entities.add(
+            SpaceEntity(
+                id = Random.nextLong(),
+                blueprint = bp,
+                position = Vector3(
+                    (Random.nextFloat() - 0.5f) * 1200f,
+                    (Random.nextFloat() - 0.5f) * 600f,
+                    Random.nextFloat() * 1000f + 600f
+                ),
+                isHostile = isHostile,
+                shields = when (bp) {
+                    ShipBlueprints.ASTEROID -> 40f
+                    ShipBlueprints.THARGOID -> 160f
+                    else -> 70f
+                }
+            )
+        )
     }
 }

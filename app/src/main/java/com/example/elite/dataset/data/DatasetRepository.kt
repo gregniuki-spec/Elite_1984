@@ -36,7 +36,11 @@ class DatasetRepository(
                 return@addSnapshotListener
             }
             if (snapshot != null) {
-                val sessions = snapshot.toObjects(DatasetSessionEntity::class.java)
+                val sessions = snapshot.documents.mapNotNull { doc ->
+                    doc.toObject(DatasetSessionEntity::class.java)?.apply {
+                        sessionId = doc.id
+                    }
+                }
                 trySend(sessions)
             }
         }

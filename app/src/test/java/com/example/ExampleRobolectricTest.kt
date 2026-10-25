@@ -296,7 +296,9 @@ class ExampleRobolectricTest {
             val mode3 = flightEngine.toggleAutoPlay()
             assertEquals(com.example.elite.flight.AutoPlayMode.SURVIVAL_DEFENSE, mode3)
             val mode4 = flightEngine.toggleAutoPlay()
-            assertEquals(com.example.elite.flight.AutoPlayMode.OFF, mode4)
+            assertEquals(com.example.elite.flight.AutoPlayMode.TRAINED_NEURAL_BOT, mode4)
+            val mode5 = flightEngine.toggleAutoPlay()
+            assertEquals(com.example.elite.flight.AutoPlayMode.OFF, mode5)
             assertFalse(flightEngine.isAutoPlayActive)
         }
     }
@@ -310,7 +312,7 @@ class ExampleRobolectricTest {
             var ecmLogged = false
             var bountyEarned = 0.0
 
-            val commander = CommanderState()
+            val commander = CommanderState(hasEcm = true)
             val synth = com.example.elite.audio.BbcSoundSynth(this)
             val flightEngine = com.example.elite.flight.FlightEngine(
                 commander = commander,

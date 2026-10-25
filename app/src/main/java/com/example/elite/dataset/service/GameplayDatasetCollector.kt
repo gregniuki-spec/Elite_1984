@@ -25,6 +25,7 @@ class GameplayDatasetCollector(
 
     private var sessionStartTimeMs: Long = System.currentTimeMillis()
     private var telemetryHarvestJob: Job? = null
+    private var cachedCloudSessions: List<DatasetSessionEntity> = emptyList()
 
     // Session Metrics Accumulators
     private var laserShotsFired: Long = 0L
@@ -34,40 +35,51 @@ class GameplayDatasetCollector(
     private var creditsEarned: Double = 0.0
     private var sampleCount: Long = 0L
 
-    private val _isRecordingActive = MutableStateFlow(false)
+    private val _isRecordingActive = MutableStateFlow(true)
     val isRecordingActive: StateFlow<Boolean> = _isRecordingActive.asStateFlow()
 
     private val _recentSessions = MutableStateFlow<List<DatasetSessionEntity>>(emptyList())
     val recentSessions: StateFlow<List<DatasetSessionEntity>> = _recentSessions.asStateFlow()
 
-    private val _statusLog = MutableStateFlow("DATASET RECORDER INITIALIZED. AWAITING FLIGHT TELEMETRY.")
+    private val _statusLog = MutableStateFlow("DATASET RECORDER INITIALIZED. STREAMING FLIGHT TELEMETRY.")
     val statusLog: StateFlow<String> = _statusLog.asStateFlow()
 
     fun onUserAuthenticated(userId: String) {
         currentUserId = userId
         _isRecordingActive.value = true
-        _statusLog.value = "PILOT IDENTIFIED: $userId. DATA HARVEST PIPELINE ONLINE."
+        _statusLog.value = "PILOT IDENTIFIED: ${userId.take(8)}. CLOUD PIPELINE ONLINE."
 
-        // Observe cloud sessions
+        // Observe cloud sessions and merge with active session
         scope.launch {
             datasetRepository.observeSessions(userId).collect { sessions ->
-                _recentSessions.value = sessions
+                cachedCloudSessions = sessions
+                updateMergedSessions()
             }
         }
     }
 
     fun onUserSignedOut() {
         currentUserId = null
-        _isRecordingActive.value = false
-        _statusLog.value = "RECORDING HALTED. SIGN IN TO RESUME DATASET HARVEST."
+        cachedCloudSessions = emptyList()
+        _statusLog.value = "CLOUD SYNC DETACHED. LOCAL TELEMETRY BUFFER ACTIVE."
+        updateMergedSessions()
+    }
+
+    private fun updateMergedSessions(activeSession: DatasetSessionEntity? = null) {
+        val current = activeSession ?: _recentSessions.value.firstOrNull()
+        if (current != null) {
+            val others = cachedCloudSessions.filter { it.sessionId != current.sessionId }
+            _recentSessions.value = listOf(current) + others
+        } else if (cachedCloudSessions.isNotEmpty()) {
+            _recentSessions.value = cachedCloudSessions
+        }
     }
 
     fun startContinuousTelemetryHarvest(flightEngine: FlightEngine, commander: CommanderState) {
         telemetryHarvestJob?.cancel()
         telemetryHarvestJob = scope.launch {
             while (isActive) {
-                delay(3000L) // Capture high-resolution strategic state slice every 3 seconds
-                val uid = currentUserId ?: continue
+                delay(2500L) // Capture high-resolution strategic state slice every 2.5 seconds
                 if (!_isRecordingActive.value) continue
 
                 sampleCount++
@@ -83,47 +95,74 @@ class GameplayDatasetCollector(
                     "MANUAL_STICK_PITCH_${flightEngine.currentPitch.toInt()}"
                 }
 
-                try {
-                    datasetRepository.recordTelemetry(
-                        userId = uid,
-                        sessionId = currentSessionId,
-                        telemetryId = "frame_${System.currentTimeMillis()}_${sampleCount}",
-                        eventType = eventType,
-                        combatRank = commander.combatRank.name,
-                        outcomeSuccess = (flightEngine.commander.killCount > 0),
-                        targetShipType = targetBp,
-                        playerShipSpeed = flightEngine.speed.toDouble(),
-                        playerShields = (commander.forwardShield + commander.aftShield).toDouble(),
-                        playerEnergy = commander.energyBanks.toDouble(),
-                        targetDistance = dist,
-                        tacticalAction = action,
-                        isAutoPlay = flightEngine.isAutoPlayActive
-                    )
+                val durationSec = (System.currentTimeMillis() - sessionStartTimeMs) / 1000L
+                val accuracy = if (laserShotsFired > 0) (laserHits.toDouble() / laserShotsFired * 100.0) else 0.0
+                val roundedAccuracy = Math.round(accuracy * 10.0) / 10.0
+                val strategy = classifyStrategy()
 
-                    // Keep session aggregate metadata fresh in cloud
-                    val durationSec = (System.currentTimeMillis() - sessionStartTimeMs) / 1000L
-                    val accuracy = if (laserShotsFired > 0) (laserHits.toDouble() / laserShotsFired * 100.0) else 0.0
+                val localActiveSession = DatasetSessionEntity(
+                    sessionId = currentSessionId,
+                    userId = currentUserId ?: "local_${commander.name.lowercase()}",
+                    pilotCallsign = commander.name,
+                    createdAt = com.google.firebase.Timestamp.now(),
+                    updatedAt = com.google.firebase.Timestamp.now(),
+                    totalKills = commander.killCount.toLong(),
+                    laserShotsFired = laserShotsFired,
+                    laserHits = laserHits,
+                    accuracyRate = roundedAccuracy,
+                    missilesFired = missilesFired,
+                    ecmSuccessCount = ecmSuccessCount,
+                    creditsEarned = creditsEarned,
+                    survivalDurationSec = durationSec,
+                    bestStrategyArchetype = strategy,
+                    sampleCount = sampleCount,
+                    status = "ACTIVE"
+                )
 
-                    datasetRepository.createOrUpdateSession(
-                        userId = uid,
-                        sessionId = currentSessionId,
-                        pilotCallsign = commander.name,
-                        totalKills = commander.killCount.toLong(),
-                        laserShotsFired = laserShotsFired,
-                        laserHits = laserHits,
-                        accuracyRate = Math.round(accuracy * 10.0) / 10.0,
-                        missilesFired = missilesFired,
-                        ecmSuccessCount = ecmSuccessCount,
-                        creditsEarned = creditsEarned,
-                        survivalDurationSec = durationSec,
-                        bestStrategyArchetype = classifyStrategy(),
-                        sampleCount = sampleCount,
-                        status = "ACTIVE"
-                    )
+                updateMergedSessions(localActiveSession)
 
-                    _statusLog.value = "TELEMETRY HARVESTED: ${sampleCount} SAMPLES -> CLOUD DATASET"
-                } catch (e: Exception) {
-                    _statusLog.value = "TELEMETRY QUEUE NOTE: ${e.message ?: "syncing"}"
+                val uid = currentUserId
+                if (uid != null) {
+                    try {
+                        datasetRepository.recordTelemetry(
+                            userId = uid,
+                            sessionId = currentSessionId,
+                            telemetryId = "frame_${System.currentTimeMillis()}_${sampleCount}",
+                            eventType = eventType,
+                            combatRank = commander.combatRank.name,
+                            outcomeSuccess = (flightEngine.commander.killCount > 0),
+                            targetShipType = targetBp,
+                            playerShipSpeed = flightEngine.speed.toDouble(),
+                            playerShields = (commander.forwardShield + commander.aftShield).toDouble(),
+                            playerEnergy = commander.energyBanks.toDouble(),
+                            targetDistance = dist,
+                            tacticalAction = action,
+                            isAutoPlay = flightEngine.isAutoPlayActive
+                        )
+
+                        datasetRepository.createOrUpdateSession(
+                            userId = uid,
+                            sessionId = currentSessionId,
+                            pilotCallsign = commander.name,
+                            totalKills = commander.killCount.toLong(),
+                            laserShotsFired = laserShotsFired,
+                            laserHits = laserHits,
+                            accuracyRate = roundedAccuracy,
+                            missilesFired = missilesFired,
+                            ecmSuccessCount = ecmSuccessCount,
+                            creditsEarned = creditsEarned,
+                            survivalDurationSec = durationSec,
+                            bestStrategyArchetype = strategy,
+                            sampleCount = sampleCount,
+                            status = "ACTIVE"
+                        )
+
+                        _statusLog.value = "TELEMETRY HARVESTED: ${sampleCount} SAMPLES -> CLOUD FIRESTORE"
+                    } catch (e: Exception) {
+                        _statusLog.value = "TELEMETRY BUFFERED: ${sampleCount} SAMPLES (CLOUD RETRY: ${e.message ?: "syncing"})"
+                    }
+                } else {
+                    _statusLog.value = "TELEMETRY HARVESTED: ${sampleCount} SAMPLES | PIPELINE ACTIVE"
                 }
             }
         }

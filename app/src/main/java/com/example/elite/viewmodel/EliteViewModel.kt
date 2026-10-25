@@ -145,6 +145,8 @@ class EliteViewModel(application: Application) : AndroidViewModel(application) {
 
         loadInitialMarketForSystem(currentSystem)
         initShipUpgradeSync()
+        commander.isDocked = false
+        flightEngine.setAutoPlay(com.example.elite.flight.AutoPlayMode.COMBAT_ACE)
         startFlightLoop()
         datasetCollector.startContinuousTelemetryHarvest(flightEngine, commander)
 
@@ -395,7 +397,12 @@ class EliteViewModel(application: Application) : AndroidViewModel(application) {
                 val dt = (now - lastTime) / 1_000_000_000.0f
                 lastTime = now
 
-                if (currentScreen == GameScreen.SPACE_FLIGHT || currentScreen == GameScreen.BATTLE_ARENA || currentScreen == GameScreen.FLEET_STRATEGY || flightEngine.isDockingComputerActive) {
+                if (currentScreen == GameScreen.SPACE_FLIGHT ||
+                    currentScreen == GameScreen.BATTLE_ARENA ||
+                    currentScreen == GameScreen.FLEET_STRATEGY ||
+                    currentScreen == GameScreen.AI_DATASET_TRAINING ||
+                    flightEngine.isDockingComputerActive ||
+                    flightEngine.isAutoPlayActive) {
                     flightEngine.update(dt)
                 }
 
